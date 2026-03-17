@@ -1,0 +1,86 @@
+# -----------------------------------------------------------------------
+# LINE ENDINGS
+# -----------------------------------------------------------------------
+/gradlew        text eol=lf
+*.sh            text eol=lf
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# -----------------------------------------------------------------------
+# SOURCE FILES — normalize to LF
+# -----------------------------------------------------------------------
+*.java          text eol=lf
+*.kt            text eol=lf
+*.groovy        text eol=lf
+*.gradle        text eol=lf
+*.kts           text eol=lf
+*.xml           text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.properties    text eol=lf
+*.sql           text eol=lf
+*.json          text eol=lf
+*.md            text eol=lf
+*.html          text eol=lf
+
+# -----------------------------------------------------------------------
+# BINARY FILES — never diff, never mangle line endings
+# -----------------------------------------------------------------------
+*.jar           binary
+*.class         binary
+*.war           binary
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+
+# Keystores and cryptographic material
+*.jks           binary
+*.p12           binary
+*.pfx           binary
+*.pem           -text
+*.key           -text
+*.crt           -text
+*.cer           -text
+
+# -----------------------------------------------------------------------
+# SENSITIVE CONFIG — suppress diff output so secrets don't appear in
+# PR reviews, git log -p, or CI build logs.
+# Applies to environment-specific overrides that may contain real values.
+# -----------------------------------------------------------------------
+.env                        -diff
+.env.*                      -diff
+*.env                       -diff
+application-local.yml       -diff
+application-dev.yml         -diff
+application-staging.yml     -diff
+application-prod.yml        -diff
+**/secrets/**               -diff
+
+# -----------------------------------------------------------------------
+# EXPORT-IGNORE — excluded from `git archive` release packages.
+# These files are for development only and must not ship in build artifacts.
+# -----------------------------------------------------------------------
+.gitattributes              export-ignore
+.gitignore                  export-ignore
+
+# Internal design documents and business requirements
+designs/                    export-ignore
+
+# Sensitive runtime config that should never be bundled
+.env                        export-ignore
+.env.*                      export-ignore
+*.env                       export-ignore
+application-local.yml       export-ignore
+application-dev.yml         export-ignore
+application-staging.yml     export-ignore
+application-prod.yml        export-ignore
+**/secrets/**               export-ignore
+
+# Cryptographic material
+*.jks                       export-ignore
+*.p12                       export-ignore
+*.pfx                       export-ignore
+*.pem                       export-ignore
+*.key                       export-ignore
