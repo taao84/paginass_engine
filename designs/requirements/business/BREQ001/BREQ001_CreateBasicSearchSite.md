@@ -17,3 +17,5 @@ Given some search terms a search should be conducted in the site's database tryi
 The search should assign a score to each potential match. A higher score will indicate a higher match between the entered search terms and the data in the database. The result needs be sorted based on that score from higher to lower scores. 
 
 The search result needs to be paginated returning 10 results per page to avoid overloading the system.
+
+Use Postgres full search capabilities for the search implementation. 
