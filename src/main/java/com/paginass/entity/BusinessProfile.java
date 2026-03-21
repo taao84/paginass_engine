@@ -37,6 +37,7 @@ public class BusinessProfile {
     private String slug;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "biz_type", nullable = false, columnDefinition = "business_type")
     private BusinessType bizType;
 
