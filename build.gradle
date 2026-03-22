@@ -40,6 +40,9 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 
+    // Dotenv - load .env file into Spring environment
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
