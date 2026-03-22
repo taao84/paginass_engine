@@ -6,9 +6,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface BusinessProfileRepository extends JpaRepository<BusinessProfile, UUID> {
+
+    List<BusinessProfile> findByOwnerIdAndIsActiveTrue(UUID ownerId);
+
+    Optional<BusinessProfile> findByIdAndOwnerId(UUID id, UUID ownerId);
 
     // Column order in SELECT must stay in sync with BusinessProfileService.mapRow()
     // [0] id, [1] name, [2] slug, [3] biz_type, [4] description, [5] tags, [6] contact_info, [7] score

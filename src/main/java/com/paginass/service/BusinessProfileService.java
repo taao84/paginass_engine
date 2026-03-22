@@ -2,16 +2,24 @@ package com.paginass.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paginass.dto.BusinessProfileDetailDto;
 import com.paginass.dto.BusinessProfileSummaryDto;
+import com.paginass.dto.BusinessProfileUpdateRequestDto;
 import com.paginass.dto.SearchResponseDto;
+import com.paginass.entity.BusinessProfile;
 import com.paginass.repository.BusinessProfileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +42,58 @@ public class BusinessProfileService {
 
         int totalPages = (int) Math.ceil((double) total / PAGE_SIZE);
         return new SearchResponseDto(results, page, totalPages, total);
+    }
+
+    public List<BusinessProfileDetailDto> getProfilesByOwner(UUID ownerId) {
+        return businessProfileRepository.findByOwnerIdAndIsActiveTrue(ownerId)
+                .stream()
+                .map(this::toDetailDto)
+                .toList();
+    }
+
+    public BusinessProfileDetailDto getProfileByOwner(UUID profileId, UUID ownerId) {
+        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(profileId, ownerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+        return toDetailDto(profile);
+    }
+
+    public BusinessProfileDetailDto updateProfile(UUID profileId, UUID ownerId, BusinessProfileUpdateRequestDto request) {
+        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(profileId, ownerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+
+        profile.setName(request.name());
+        profile.setDescription(request.description());
+
+        Map<String, String> contactInfo = new HashMap<>();
+        if (request.phones() != null) contactInfo.put("phones", request.phones());
+        if (request.contactHours() != null) contactInfo.put("hours", request.contactHours());
+        if (request.address() != null) contactInfo.put("address", request.address());
+        profile.setContactInfo(contactInfo);
+
+        profile.setTags(parseCsv(request.services()));
+
+        return toDetailDto(businessProfileRepository.save(profile));
+    }
+
+    private BusinessProfileDetailDto toDetailDto(BusinessProfile p) {
+        return new BusinessProfileDetailDto(
+                p.getId(),
+                p.getName(),
+                p.getSlug(),
+                p.getBizType().name(),
+                p.getDescription(),
+                p.getContactInfo(),
+                p.getTags(),
+                p.isActive()
+        );
+    }
+
+    private List<String> parseCsv(String csv) {
+        if (csv == null || csv.isBlank()) return List.of();
+        return Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
     }
 
     // Column positions must match the SELECT order in BusinessProfileRepository.searchBusinessProfiles:
