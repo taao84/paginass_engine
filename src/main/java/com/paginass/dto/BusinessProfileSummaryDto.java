@@ -12,5 +12,6 @@ public record BusinessProfileSummaryDto(
         String description,
         List<String> tags,
         Map<String, String> contactInfo,
-        double score
+        double score,
+        boolean miniSiteEnabled
 ) {}

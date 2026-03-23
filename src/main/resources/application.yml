@@ -2,6 +2,11 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
+
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: ${DB_USERNAME}
@@ -42,3 +47,9 @@ spring:
 
 server:
   port: 8080
+
+app:
+  storage:
+    upload-dir: ${UPLOAD_DIR:./uploads}
+    public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
+

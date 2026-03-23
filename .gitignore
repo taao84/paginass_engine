@@ -36,6 +36,9 @@ out/
 ### VS Code ###
 .vscode/
 
+### Uploads ###
+uploads/
+
 ### Secrets ###
 .env
 .env.local

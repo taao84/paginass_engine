@@ -58,7 +58,7 @@ public class SecurityConfig {
             .authenticationProvider(daoAuthenticationProvider())
 
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/error", "/login**", "/oauth2/**", "/api/search", "/api/auth/register").permitAll()
+                .requestMatchers("/", "/error", "/login**", "/oauth2/**", "/api/search", "/api/auth/register", "/api/public/**", "/uploads/**").permitAll()
                 .anyRequest().authenticated()
             )
 

@@ -12,5 +12,7 @@ public record BusinessProfileDetailDto(
         String description,
         Map<String, String> contactInfo,
         List<String> tags,
+        List<String> imageUrls,
+        boolean miniSiteEnabled,
         boolean isActive
 ) {}
