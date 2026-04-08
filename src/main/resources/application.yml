@@ -49,6 +49,8 @@ server:
   port: 8080
 
 app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
   storage:
     upload-dir: ${UPLOAD_DIR:./uploads}
     public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
