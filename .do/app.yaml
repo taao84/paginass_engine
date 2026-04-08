@@ -1,0 +1,31 @@
+name: paginass-engine
+region: sao1
+
+services:
+  - name: api
+    image:
+      registry_type: GHCR
+      registry: taao84
+      repository: paginass_engine
+      tag: latest
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 8080
+    health_check:
+      http_path: /actuator/health
+    envs:
+      - key: DB_URL
+        value: ${db.DATABASE_URL}
+      - key: DB_USERNAME
+        value: ${db.USERNAME}
+      - key: DB_PASSWORD
+        value: ${db.PASSWORD}
+        type: SECRET
+      - key: PUBLIC_BASE_URL
+        value: https://api.paginass.com
+
+databases:
+  - name: db
+    engine: PG
+    version: "16"
+    production: false
