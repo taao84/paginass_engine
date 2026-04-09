@@ -2,6 +2,11 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always
+
   servlet:
     multipart:
       max-file-size: 2MB
