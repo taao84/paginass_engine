@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfigurationSource;
 
@@ -25,6 +26,9 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final CustomUserDetailsService customUserDetailsService;
     private final CorsConfigurationSource corsConfigurationSource;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
@@ -70,13 +74,13 @@ public class SecurityConfig {
 
             .formLogin(form -> form
                 .loginProcessingUrl("/login")
-                .defaultSuccessUrl("http://localhost:3000", true)
-                .failureUrl("http://localhost:3000/login?error=true")
+                .defaultSuccessUrl(frontendUrl, true)
+                .failureUrl(frontendUrl + "/login?error=true")
                 .permitAll()
             )
 
             .oauth2Login(oauth2 -> oauth2
-                .defaultSuccessUrl("http://localhost:3000", true)
+                .defaultSuccessUrl(frontendUrl, true)
                 .userInfoEndpoint(userInfo -> userInfo
                     .userService(customOAuth2UserService)
                 )
@@ -84,7 +88,7 @@ public class SecurityConfig {
 
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
-                .logoutSuccessUrl("http://localhost:3000")
+                .logoutSuccessUrl(frontendUrl)
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
                 .permitAll()

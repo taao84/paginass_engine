@@ -51,6 +51,7 @@ server:
 app:
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
   storage:
     upload-dir: ${UPLOAD_DIR:./uploads}
     public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
