@@ -58,6 +58,7 @@ public class SecurityConfig {
             .authenticationProvider(daoAuthenticationProvider())
 
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/", "/error", "/login**", "/oauth2/**", "/api/search", "/api/auth/register", "/api/public/**", "/uploads/**").permitAll()
                 .anyRequest().authenticated()
             )
