@@ -45,6 +45,10 @@ dependencies {
     // Dotenv - load .env file into Spring environment
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 
+    // AWS SDK v2 for S3-compatible storage (Cloudflare R2)
+    implementation platform('software.amazon.awssdk:bom:2.29.52')
+    implementation 'software.amazon.awssdk:s3'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

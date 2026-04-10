@@ -10,7 +10,6 @@ import com.paginass.dto.SearchResponseDto;
 import com.paginass.entity.BusinessProfile;
 import com.paginass.repository.BusinessProfileRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,11 +34,8 @@ public class BusinessProfileService {
     private static final int MAX_IMAGES = 5;
 
     private final BusinessProfileRepository businessProfileRepository;
-    private final LocalFileStorageService localFileStorageService;
+    private final StorageService storageService;
     private final ObjectMapper objectMapper;
-
-    @Value("${app.storage.public-base-url}")
-    private String publicBaseUrl;
 
     public SearchResponseDto search(String query, int page) {
         int offset = page * PAGE_SIZE;
@@ -123,7 +119,7 @@ public class BusinessProfileService {
         try {
             String extension = getExtension(file.getOriginalFilename());
             String subPath = "businesses/" + businessId + "/" + UUID.randomUUID() + extension;
-            localFileStorageService.saveFile(subPath, file.getInputStream());
+            storageService.saveFile(subPath, file.getInputStream());
             currentPaths.add(subPath);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save image");
@@ -137,17 +133,13 @@ public class BusinessProfileService {
         BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(businessId, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
 
-        String prefix = publicBaseUrl + "/uploads/";
-        List<String> orderedPaths = orderedUrls.stream()
-                .map(url -> {
-                    if (!url.startsWith(prefix)) {
-                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image URL");
-                    }
-                    return url.substring(prefix.length());
-                })
-                .toList();
-
         List<String> currentPaths = profile.getImageUrls() != null ? profile.getImageUrls() : List.of();
+        List<String> orderedPaths = orderedUrls.stream()
+                .map(url -> currentPaths.stream()
+                        .filter(p -> storageService.toPublicUrl(p).equals(url))
+                        .findFirst()
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image URL")))
+                .toList();
         if (orderedPaths.size() != currentPaths.size()
                 || !new HashSet<>(orderedPaths).equals(new HashSet<>(currentPaths))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image list does not match stored images");
@@ -168,7 +160,7 @@ public class BusinessProfileService {
 
         String subPath = currentPaths.remove(imageIndex);
         try {
-            localFileStorageService.deleteFile(subPath);
+            storageService.deleteFile(subPath);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete image");
         }
@@ -195,7 +187,7 @@ public class BusinessProfileService {
     private List<String> toPublicUrls(List<String> subPaths) {
         if (subPaths == null) return List.of();
         return subPaths.stream()
-                .map(p -> publicBaseUrl + "/uploads/" + p)
+                .map(storageService::toPublicUrl)
                 .toList();
     }
 
