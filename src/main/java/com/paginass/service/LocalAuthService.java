@@ -1,6 +1,7 @@
 package com.paginass.service;
 
 import com.paginass.entity.User;
+import com.paginass.entity.UserRole;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -26,6 +27,7 @@ public class LocalAuthService {
         user.setEmail(email);
         user.setFullName(fullName);
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setRole(UserRole.CONTRIBUTOR);
         return userRepository.save(user);
     }
 

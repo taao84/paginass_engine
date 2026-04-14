@@ -1,3 +1,5 @@
 package com.paginass.dto;
 
-public record CurrentUserDto(String name, String email) {}
+import com.paginass.entity.UserRole;
+
+public record CurrentUserDto(String name, String email, UserRole role) {}

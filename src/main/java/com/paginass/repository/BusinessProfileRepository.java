@@ -15,10 +15,12 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
 
     Optional<BusinessProfile> findByIdAndOwnerId(UUID id, UUID ownerId);
 
+    boolean existsByOwnerIdAndIsClaimedTrue(UUID ownerId);
+
     Optional<BusinessProfile> findBySlugAndIsActiveTrue(String slug);
 
     // Column order in SELECT must stay in sync with BusinessProfileService.mapRow()
-    // [0] id, [1] name, [2] slug, [3] biz_type, [4] description, [5] tags, [6] contact_info, [7] score, [8] mini_site_enabled
+    // [0] id, [1] name, [2] slug, [3] biz_type, [4] description, [5] tags, [6] contact_info, [7] score, [8] mini_site_enabled, [9] is_claimed
     @Query(value = """
             SELECT b.id::text,
                    b.name,
@@ -28,7 +30,8 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
                    b.tags::text,
                    b.contact_info::text,
                    ts_rank(b.search_vector, websearch_to_tsquery('spanish', :query)) AS score,
-                   b.mini_site_enabled
+                   b.mini_site_enabled,
+                   b.is_claimed
             FROM   business_profiles b
             WHERE  b.is_active = true
               AND  b.search_vector @@ websearch_to_tsquery('spanish', :query)

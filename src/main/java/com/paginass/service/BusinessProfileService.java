@@ -8,6 +8,8 @@ import com.paginass.dto.BusinessProfileSummaryDto;
 import com.paginass.dto.BusinessProfileUpdateRequestDto;
 import com.paginass.dto.SearchResponseDto;
 import com.paginass.entity.BusinessProfile;
+import com.paginass.entity.User;
+import com.paginass.entity.UserRole;
 import com.paginass.repository.BusinessProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -58,15 +60,21 @@ public class BusinessProfileService {
                 .toList();
     }
 
+    public BusinessProfileDetailDto getProfileById(UUID profileId) {
+        BusinessProfile profile = businessProfileRepository.findById(profileId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+        return toDetailDto(profile);
+    }
+
     public BusinessProfileDetailDto getProfileByOwner(UUID profileId, UUID ownerId) {
         BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(profileId, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
         return toDetailDto(profile);
     }
 
-    public BusinessProfileDetailDto updateProfile(UUID profileId, UUID ownerId, BusinessProfileUpdateRequestDto request) {
-        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(profileId, ownerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+    public BusinessProfileDetailDto updateProfile(UUID profileId, User requestingUser, BusinessProfileUpdateRequestDto request) {
+        BusinessProfile profile = findProfileOrThrow(profileId);
+        authorizeEdit(profile, requestingUser);
 
         profile.setName(request.name());
         profile.setDescription(request.description());
@@ -82,9 +90,9 @@ public class BusinessProfileService {
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
-    public BusinessProfileDetailDto toggleMiniSite(UUID businessId, UUID ownerId) {
-        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(businessId, ownerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+    public BusinessProfileDetailDto toggleMiniSite(UUID businessId, User requestingUser) {
+        BusinessProfile profile = findProfileOrThrow(businessId);
+        authorizeMiniSiteToggle(profile, requestingUser);
         profile.setMiniSiteEnabled(!profile.isMiniSiteEnabled());
         return toDetailDto(businessProfileRepository.save(profile));
     }
@@ -104,9 +112,9 @@ public class BusinessProfileService {
         );
     }
 
-    public BusinessProfileDetailDto uploadImage(UUID businessId, UUID ownerId, MultipartFile file) {
-        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(businessId, ownerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+    public BusinessProfileDetailDto uploadImage(UUID businessId, User requestingUser, MultipartFile file) {
+        BusinessProfile profile = findProfileOrThrow(businessId);
+        authorizeEdit(profile, requestingUser);
 
         List<String> currentPaths = profile.getImageUrls() == null
                 ? new ArrayList<>() : new ArrayList<>(profile.getImageUrls());
@@ -129,9 +137,9 @@ public class BusinessProfileService {
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
-    public BusinessProfileDetailDto reorderImages(UUID businessId, UUID ownerId, List<String> orderedUrls) {
-        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(businessId, ownerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+    public BusinessProfileDetailDto reorderImages(UUID businessId, User requestingUser, List<String> orderedUrls) {
+        BusinessProfile profile = findProfileOrThrow(businessId);
+        authorizeEdit(profile, requestingUser);
 
         List<String> currentPaths = profile.getImageUrls() != null ? profile.getImageUrls() : List.of();
         List<String> orderedPaths = orderedUrls.stream()
@@ -149,9 +157,9 @@ public class BusinessProfileService {
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
-    public BusinessProfileDetailDto deleteImage(UUID businessId, UUID ownerId, int imageIndex) {
-        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(businessId, ownerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+    public BusinessProfileDetailDto deleteImage(UUID businessId, User requestingUser, int imageIndex) {
+        BusinessProfile profile = findProfileOrThrow(businessId);
+        authorizeEdit(profile, requestingUser);
 
         List<String> currentPaths = new ArrayList<>(profile.getImageUrls());
         if (imageIndex < 0 || imageIndex >= currentPaths.size()) {
@@ -169,6 +177,42 @@ public class BusinessProfileService {
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
+    // --- Authorization helpers ---
+
+    private void authorizeEdit(BusinessProfile profile, User user) {
+        if (user.getRole() == UserRole.ADMIN) return;
+
+        if (profile.isClaimed()) {
+            if (user.getRole() == UserRole.OWNER && user.getId().equals(profile.getOwnerId())) return;
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only the business owner or an admin can edit a claimed business");
+        }
+
+        // Unclaimed: CONTRIBUTOR and OWNER can both edit
+        if (user.getRole() == UserRole.CONTRIBUTOR || user.getRole() == UserRole.OWNER) return;
+
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "You do not have permission to edit this business");
+    }
+
+    private void authorizeMiniSiteToggle(BusinessProfile profile, User user) {
+        if (user.getRole() == UserRole.ADMIN) return;
+
+        if (user.getRole() == UserRole.OWNER
+                && profile.isClaimed()
+                && user.getId().equals(profile.getOwnerId())) return;
+
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Only the business owner can manage the mini-site");
+    }
+
+    // --- Private helpers ---
+
+    private BusinessProfile findProfileOrThrow(UUID profileId) {
+        return businessProfileRepository.findById(profileId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
+    }
+
     private BusinessProfileDetailDto toDetailDto(BusinessProfile p) {
         return new BusinessProfileDetailDto(
                 p.getId(),
@@ -180,7 +224,8 @@ public class BusinessProfileService {
                 p.getTags(),
                 toPublicUrls(p.getImageUrls()),
                 p.isMiniSiteEnabled(),
-                p.isActive()
+                p.isActive(),
+                p.isClaimed()
         );
     }
 
@@ -205,7 +250,7 @@ public class BusinessProfileService {
     }
 
     // Column positions must match the SELECT order in BusinessProfileRepository.searchBusinessProfiles:
-    // [0] id, [1] name, [2] slug, [3] biz_type, [4] description, [5] tags, [6] contact_info, [7] score, [8] mini_site_enabled
+    // [0] id, [1] name, [2] slug, [3] biz_type, [4] description, [5] tags, [6] contact_info, [7] score, [8] mini_site_enabled, [9] is_claimed
     private BusinessProfileSummaryDto mapRow(Object[] row) {
         try {
             UUID id = UUID.fromString((String) row[0]);
@@ -226,7 +271,9 @@ public class BusinessProfileService {
 
             boolean miniSiteEnabled = row[8] != null && (Boolean) row[8];
 
-            return new BusinessProfileSummaryDto(id, name, slug, bizType, description, tags, contactInfo, score, miniSiteEnabled);
+            boolean isClaimed = row[9] != null && (Boolean) row[9];
+
+            return new BusinessProfileSummaryDto(id, name, slug, bizType, description, tags, contactInfo, score, miniSiteEnabled, isClaimed);
         } catch (Exception e) {
             throw new RuntimeException("Failed to map search result row", e);
         }

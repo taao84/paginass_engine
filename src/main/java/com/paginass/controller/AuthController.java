@@ -38,7 +38,7 @@ public class AuthController {
 
         String email = resolveEmail(authentication);
         return userRepository.findByEmail(email)
-                .map(user -> ResponseEntity.ok(new CurrentUserDto(user.getFullName(), user.getEmail())))
+                .map(user -> ResponseEntity.ok(new CurrentUserDto(user.getFullName(), user.getEmail(), user.getRole())))
                 .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 

@@ -14,5 +14,6 @@ public record BusinessProfileDetailDto(
         List<String> tags,
         List<String> imageUrls,
         boolean miniSiteEnabled,
-        boolean isActive
+        boolean isActive,
+        boolean isClaimed
 ) {}

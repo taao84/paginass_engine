@@ -27,7 +27,7 @@ public class BusinessProfile {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "owner_id", nullable = false)
+    @Column(name = "owner_id", nullable = true)
     private UUID ownerId;
 
     @Column(nullable = false, length = 255)
@@ -55,6 +55,9 @@ public class BusinessProfile {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "image_urls", columnDefinition = "jsonb", nullable = false)
     private List<String> imageUrls = new ArrayList<>();
+
+    @Column(name = "is_claimed", nullable = false)
+    private boolean isClaimed = false;
 
     @Column(name = "is_active")
     private boolean isActive = true;
