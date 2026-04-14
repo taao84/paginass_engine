@@ -8,5 +8,6 @@ public record BusinessMiniSiteDto(
         String description,
         Map<String, String> contactInfo,
         List<String> imageUrls,
-        List<String> tags
+        List<String> tags,
+        boolean miniSiteEnabled
 ) {}

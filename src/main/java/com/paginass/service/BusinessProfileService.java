@@ -6,6 +6,8 @@ import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.BusinessProfileDetailDto;
 import com.paginass.dto.BusinessProfileSummaryDto;
 import com.paginass.dto.BusinessProfileUpdateRequestDto;
+import com.paginass.dto.DirectoryEntryDto;
+import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.SearchResponseDto;
 import com.paginass.entity.BusinessProfile;
 import com.paginass.entity.User;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 public class BusinessProfileService {
 
     private static final int PAGE_SIZE = 10;
+    private static final int DIRECTORY_PAGE_SIZE = 50;
     private static final int MAX_IMAGES = 5;
 
     private final BusinessProfileRepository businessProfileRepository;
@@ -51,6 +54,20 @@ public class BusinessProfileService {
 
         int totalPages = (int) Math.ceil((double) total / PAGE_SIZE);
         return new SearchResponseDto(results, page, totalPages, total);
+    }
+
+    public DirectoryPageDto getDirectory(int page) {
+        int offset = page * DIRECTORY_PAGE_SIZE;
+
+        List<Object[]> rows = businessProfileRepository.findAllForDirectory(DIRECTORY_PAGE_SIZE, offset);
+        long total = businessProfileRepository.countAllForDirectory();
+
+        List<DirectoryEntryDto> content = rows.stream()
+                .map(row -> new DirectoryEntryDto((String) row[0], (String) row[1], (String) row[2]))
+                .toList();
+
+        int totalPages = (int) Math.ceil((double) total / DIRECTORY_PAGE_SIZE);
+        return new DirectoryPageDto(content, page, totalPages, total);
     }
 
     public List<BusinessProfileDetailDto> getProfilesByOwner(UUID ownerId) {
@@ -103,13 +120,13 @@ public class BusinessProfileService {
         if (!profile.isMiniSiteEnabled()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mini site not found");
         }
-        return new BusinessMiniSiteDto(
-                profile.getName(),
-                profile.getDescription(),
-                profile.getContactInfo(),
-                toPublicUrls(profile.getImageUrls()),
-                profile.getTags() != null ? profile.getTags() : List.of()
-        );
+        return toMiniSiteDto(profile);
+    }
+
+    public BusinessMiniSiteDto getPublicBusinessBySlug(String slug) {
+        BusinessProfile profile = businessProfileRepository.findBySlugAndIsActiveTrue(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+        return toMiniSiteDto(profile);
     }
 
     public BusinessProfileDetailDto uploadImage(UUID businessId, User requestingUser, MultipartFile file) {
@@ -207,6 +224,17 @@ public class BusinessProfileService {
     }
 
     // --- Private helpers ---
+
+    private BusinessMiniSiteDto toMiniSiteDto(BusinessProfile profile) {
+        return new BusinessMiniSiteDto(
+                profile.getName(),
+                profile.getDescription(),
+                profile.getContactInfo(),
+                toPublicUrls(profile.getImageUrls()),
+                profile.getTags() != null ? profile.getTags() : List.of(),
+                profile.isMiniSiteEnabled()
+        );
+    }
 
     private BusinessProfile findProfileOrThrow(UUID profileId) {
         return businessProfileRepository.findById(profileId)

@@ -50,4 +50,23 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
               AND  b.search_vector @@ websearch_to_tsquery('spanish', :query)
             """, nativeQuery = true)
     long countSearchResults(@Param("query") String query);
+
+    // Column order: [0] name, [1] slug, [2] biz_type
+    @Query(value = """
+            SELECT b.name,
+                   b.slug,
+                   b.biz_type::text
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+            ORDER  BY b.biz_type ASC, b.name ASC
+            LIMIT  :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<Object[]> findAllForDirectory(@Param("limit") int limit, @Param("offset") int offset);
+
+    @Query(value = """
+            SELECT count(*)
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+            """, nativeQuery = true)
+    long countAllForDirectory();
 }
