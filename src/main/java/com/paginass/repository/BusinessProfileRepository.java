@@ -11,9 +11,9 @@ import java.util.UUID;
 
 public interface BusinessProfileRepository extends JpaRepository<BusinessProfile, UUID> {
 
-    List<BusinessProfile> findByOwnerIdAndIsActiveTrue(UUID ownerId);
+    List<BusinessProfile> findByOwnerIdAndIsClaimedTrueAndIsActiveTrue(UUID ownerId);
 
-    Optional<BusinessProfile> findByIdAndOwnerId(UUID id, UUID ownerId);
+    Optional<BusinessProfile> findByIdAndOwnerIdAndIsClaimedTrue(UUID id, UUID ownerId);
 
     boolean existsByOwnerIdAndIsClaimedTrue(UUID ownerId);
 

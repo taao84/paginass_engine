@@ -71,7 +71,7 @@ public class BusinessProfileService {
     }
 
     public List<BusinessProfileDetailDto> getProfilesByOwner(UUID ownerId) {
-        return businessProfileRepository.findByOwnerIdAndIsActiveTrue(ownerId)
+        return businessProfileRepository.findByOwnerIdAndIsClaimedTrueAndIsActiveTrue(ownerId)
                 .stream()
                 .map(this::toDetailDto)
                 .toList();
@@ -84,7 +84,7 @@ public class BusinessProfileService {
     }
 
     public BusinessProfileDetailDto getProfileByOwner(UUID profileId, UUID ownerId) {
-        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerId(profileId, ownerId)
+        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerIdAndIsClaimedTrue(profileId, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
         return toDetailDto(profile);
     }
