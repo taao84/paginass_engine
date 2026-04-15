@@ -10,7 +10,6 @@ import com.paginass.service.EmailVerificationService;
 import com.paginass.service.LocalAuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -18,7 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -29,9 +28,6 @@ public class AuthController {
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
 
-    @Value("${app.frontend-url}")
-    private String frontendUrl;
-
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
         User user = localAuthService.registerUser(request.email(), request.password(), request.fullName());
@@ -40,16 +36,12 @@ public class AuthController {
     }
 
     @GetMapping("/verify-email")
-    public ResponseEntity<Void> verifyEmail(@RequestParam String token) {
+    public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
         try {
             emailVerificationService.verifyToken(token);
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl + "/verify-email?status=success"))
-                    .build();
+            return ResponseEntity.ok(Map.of("status", "success"));
         } catch (EmailVerificationService.InvalidTokenException ex) {
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl + "/verify-email?status=" + ex.getReason()))
-                    .build();
+            return ResponseEntity.badRequest().body(Map.of("status", ex.getReason()));
         }
     }
 
