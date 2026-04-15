@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,6 +17,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -29,6 +32,17 @@ public class SecurityConfig {
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
+
+    private static final String[] PUBLIC_PATHS = {
+        "/", "/error",
+        "/login**", "/oauth2/**",
+        "/uploads/**",
+        "/api/public/**",
+        "/api/search",
+        "/api/auth/register",
+        "/api/auth/verify-email",
+        "/api/auth/resend-verification"
+    };
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
@@ -49,6 +63,22 @@ public class SecurityConfig {
     }
 
     @Bean
+    public AuthenticationSuccessHandler loginSuccessHandler() {
+        return (request, response, authentication) ->
+                response.setStatus(HttpServletResponse.SC_OK);
+    }
+
+    @Bean
+    public AuthenticationFailureHandler loginFailureHandler() {
+        return (request, response, exception) -> {
+            int status = exception instanceof DisabledException
+                    ? HttpServletResponse.SC_FORBIDDEN
+                    : HttpServletResponse.SC_UNAUTHORIZED;
+            response.setStatus(status);
+        };
+    }
+
+    @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
         return (request, response, authException) ->
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
@@ -64,7 +94,7 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/", "/error", "/login**", "/oauth2/**", "/api/search", "/api/auth/register", "/api/public/**", "/uploads/**").permitAll()
+                .requestMatchers(PUBLIC_PATHS).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
@@ -75,8 +105,8 @@ public class SecurityConfig {
 
             .formLogin(form -> form
                 .loginProcessingUrl("/login")
-                .defaultSuccessUrl(frontendUrl, true)
-                .failureUrl(frontendUrl + "/login?error=true")
+                .successHandler(loginSuccessHandler())
+                .failureHandler(loginFailureHandler())
                 .permitAll()
             )
 

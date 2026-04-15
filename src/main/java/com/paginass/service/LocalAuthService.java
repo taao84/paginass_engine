@@ -16,6 +16,7 @@ public class LocalAuthService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final EmailVerificationService emailVerificationService;
 
     public User registerUser(String email, String rawPassword, String fullName) {
         if (userRepository.findByEmail(email).isPresent()) {
@@ -28,7 +29,10 @@ public class LocalAuthService {
         user.setFullName(fullName);
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
         user.setRole(UserRole.CONTRIBUTOR);
-        return userRepository.save(user);
+        user.setEmailVerified(false);
+        User saved = userRepository.save(user);
+        emailVerificationService.generateAndSendToken(saved);
+        return saved;
     }
 
     public String generateSlug(String name) {

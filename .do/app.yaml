@@ -22,7 +22,19 @@ services:
         value: ${db.PASSWORD}
         type: SECRET
       - key: PUBLIC_BASE_URL
-        value: https://api.paginass.com
+        value: https://assets.paginass.co
+      - key: MAIL_HOST
+        value: smtp.mailgun.org
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        type: SECRET
+        value: ""
+      - key: MAIL_PASSWORD
+        type: SECRET
+        value: ""
+      - key: MAIL_FROM
+        value: ""
 
 databases:
   - name: db

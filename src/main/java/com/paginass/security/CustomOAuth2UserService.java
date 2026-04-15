@@ -50,6 +50,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         user.setOauthId(oauthId);
         user.setEmail(email);
         user.setFullName(name);
+        user.setEmailVerified(true);
 
         userRepository.save(user);
     }
