@@ -4,6 +4,7 @@ import com.paginass.dto.AuthResponseDto;
 import com.paginass.dto.CurrentUserDto;
 import com.paginass.dto.RegisterRequestDto;
 import com.paginass.dto.ResendVerificationRequestDto;
+import com.paginass.dto.UpdateUserProfileRequestDto;
 import com.paginass.entity.User;
 import com.paginass.repository.UserRepository;
 import com.paginass.service.EmailVerificationService;
@@ -61,6 +62,24 @@ public class AuthController {
         return userRepository.findByEmail(email)
                 .map(user -> ResponseEntity.ok(new CurrentUserDto(user.getFullName(), user.getEmail(), user.getRole())))
                 .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<CurrentUserDto> updateProfile(
+            @Valid @RequestBody UpdateUserProfileRequestDto request,
+            Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = resolveEmail(authentication);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
+
+        user.setFullName(request.fullName());
+        userRepository.save(user);
+
+        return ResponseEntity.ok(new CurrentUserDto(user.getFullName(), user.getEmail(), user.getRole()));
     }
 
     private String resolveEmail(Authentication authentication) {
