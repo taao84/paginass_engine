@@ -30,6 +30,9 @@ public class BusinessProfile {
     @Column(name = "owner_id", nullable = true)
     private UUID ownerId;
 
+    @Column(name = "created_by", updatable = false)
+    private UUID createdBy;
+
     @Column(nullable = false, length = 255)
     private String name;
 
