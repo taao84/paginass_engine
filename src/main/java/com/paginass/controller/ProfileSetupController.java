@@ -45,6 +45,7 @@ public class ProfileSetupController {
 
         BusinessProfile profile = new BusinessProfile();
         profile.setOwnerId(owner.getId());
+        profile.setCreatedBy(owner.getId());
         profile.setName(displayName);
         profile.setSlug(localAuthService.generateSlug(displayName));
         profile.setBizType(resolveBizType(request));

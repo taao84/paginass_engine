@@ -253,7 +253,8 @@ public class BusinessProfileService {
                 toPublicUrls(p.getImageUrls()),
                 p.isMiniSiteEnabled(),
                 p.isActive(),
-                p.isClaimed()
+                p.isClaimed(),
+                p.getCreatedBy()
         );
     }
 

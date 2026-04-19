@@ -15,5 +15,6 @@ public record BusinessProfileDetailDto(
         List<String> imageUrls,
         boolean miniSiteEnabled,
         boolean isActive,
-        boolean isClaimed
+        boolean isClaimed,
+        UUID createdBy
 ) {}
