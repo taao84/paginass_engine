@@ -1,0 +1,57 @@
+resources:
+  - name: Business Profiles
+    rules:
+      - operation: Edit unclaimed business
+        contributor: allowed
+        owner: allowed
+        admin: allowed
+      - operation: Edit own claimed business
+        contributor: denied
+        owner: allowed
+        admin: allowed
+      - operation: Edit other's claimed business
+        contributor: denied
+        owner: denied
+        admin: allowed
+      - operation: Toggle mini-site on own claimed business
+        contributor: denied
+        owner: allowed
+        admin: allowed
+      - operation: Toggle mini-site on unclaimed business
+        contributor: denied
+        owner: denied
+        admin: allowed
+      - operation: Create new business
+        contributor: allowed
+        owner: allowed
+        admin: allowed
+
+  - name: Claim Queue
+    rules:
+      - operation: Submit a claim on an unclaimed business
+        contributor: allowed
+        owner: allowed
+        admin: denied
+      - operation: View pending claims
+        contributor: denied
+        owner: denied
+        admin: allowed
+      - operation: Approve or reject a claim
+        contributor: denied
+        owner: denied
+        admin: allowed
+      - operation: Directly assign ownership to a user
+        contributor: denied
+        owner: denied
+        admin: allowed
+      - operation: Revoke ownership
+        contributor: denied
+        owner: denied
+        admin: allowed
+
+  - name: Mis negocios
+    rules:
+      - operation: Access Mis negocios section
+        contributor: denied
+        owner: allowed
+        admin: allowed
