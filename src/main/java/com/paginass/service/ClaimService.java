@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,7 +76,7 @@ public class ClaimService {
         }
 
         claim.setStatus(approve ? ClaimStatus.APPROVED : ClaimStatus.REJECTED);
-        claim.setResolvedAt(OffsetDateTime.now());
+        claim.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
         businessClaimRepository.save(claim);
 
         if (approve) {

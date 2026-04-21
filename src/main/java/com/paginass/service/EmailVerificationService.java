@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
@@ -24,7 +25,7 @@ public class EmailVerificationService {
     public void generateAndSendToken(User user) {
         String token = UUID.randomUUID().toString();
         user.setVerificationToken(token);
-        user.setTokenExpiresAt(OffsetDateTime.now().plusHours(1));
+        user.setTokenExpiresAt(OffsetDateTime.now(ZoneOffset.UTC).plusHours(1));
         userRepository.save(user);
         sendVerificationEmail(user.getEmail(), token);
     }
@@ -34,7 +35,7 @@ public class EmailVerificationService {
         User user = userRepository.findByVerificationToken(token)
                 .orElseThrow(() -> new InvalidTokenException("invalid"));
 
-        if (OffsetDateTime.now().isAfter(user.getTokenExpiresAt())) {
+        if (OffsetDateTime.now(ZoneOffset.UTC).isAfter(user.getTokenExpiresAt())) {
             throw new InvalidTokenException("expired");
         }
 
@@ -52,7 +53,7 @@ public class EmailVerificationService {
             }
             if (user.getTokenExpiresAt() != null) {
                 OffsetDateTime issuedAt = user.getTokenExpiresAt().minusHours(1);
-                if (OffsetDateTime.now().isBefore(issuedAt.plusMinutes(5))) {
+                if (OffsetDateTime.now(ZoneOffset.UTC).isBefore(issuedAt.plusMinutes(5))) {
                     return; // rate-limit: token issued less than 5 minutes ago
                 }
             }
