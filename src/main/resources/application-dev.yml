@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 10000
+
+app:
+  mail:
+    retry:
+      max-attempts: 1
+      delay-ms: 500
+
+logging:
+  level:
+    com.zaxxer.hikari: DEBUG

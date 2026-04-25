@@ -16,6 +16,7 @@ import com.paginass.repository.BusinessProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -42,6 +43,7 @@ public class BusinessProfileService {
     private final StorageService storageService;
     private final ObjectMapper objectMapper;
 
+    @Transactional(readOnly = true)
     public SearchResponseDto search(String query, int page) {
         int offset = page * PAGE_SIZE;
 
@@ -56,6 +58,7 @@ public class BusinessProfileService {
         return new SearchResponseDto(results, page, totalPages, total);
     }
 
+    @Transactional(readOnly = true)
     public DirectoryPageDto getDirectory(int page) {
         int offset = page * DIRECTORY_PAGE_SIZE;
 
@@ -70,6 +73,7 @@ public class BusinessProfileService {
         return new DirectoryPageDto(content, page, totalPages, total);
     }
 
+    @Transactional(readOnly = true)
     public List<BusinessProfileDetailDto> getProfilesByOwner(UUID ownerId) {
         return businessProfileRepository.findByOwnerIdAndIsClaimedTrueAndIsActiveTrue(ownerId)
                 .stream()
@@ -77,12 +81,14 @@ public class BusinessProfileService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public BusinessProfileDetailDto getProfileById(UUID profileId) {
         BusinessProfile profile = businessProfileRepository.findById(profileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
         return toDetailDto(profile);
     }
 
+    @Transactional(readOnly = true)
     public BusinessProfileDetailDto getProfileByOwner(UUID profileId, UUID ownerId) {
         BusinessProfile profile = businessProfileRepository.findByIdAndOwnerIdAndIsClaimedTrue(profileId, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
@@ -115,6 +121,7 @@ public class BusinessProfileService {
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
+    @Transactional(readOnly = true)
     public BusinessMiniSiteDto getMiniSiteBySlug(String slug) {
         BusinessProfile profile = businessProfileRepository.findBySlugAndIsActiveTrue(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mini site not found"));
@@ -124,6 +131,7 @@ public class BusinessProfileService {
         return toMiniSiteDto(profile);
     }
 
+    @Transactional(readOnly = true)
     public BusinessMiniSiteDto getPublicBusinessBySlug(String slug) {
         BusinessProfile profile = businessProfileRepository.findBySlugAndIsActiveTrue(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));

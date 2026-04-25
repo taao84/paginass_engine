@@ -3,7 +3,9 @@ package com.paginass.service;
 import com.paginass.entity.User;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,16 +20,24 @@ public class EmailVerificationService {
     private final UserRepository userRepository;
     private final MailService mailService;
 
+    @Autowired @Lazy
+    private EmailVerificationService self;
+
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    @Transactional
     public void generateAndSendToken(User user) {
+        String token = self.saveToken(user);
+        sendVerificationEmail(user.getEmail(), token);
+    }
+
+    @Transactional
+    public String saveToken(User user) {
         String token = UUID.randomUUID().toString();
         user.setVerificationToken(token);
         user.setTokenExpiresAt(OffsetDateTime.now(ZoneOffset.UTC).plusHours(1));
         userRepository.save(user);
-        sendVerificationEmail(user.getEmail(), token);
+        return token;
     }
 
     @Transactional
@@ -45,20 +55,31 @@ public class EmailVerificationService {
         userRepository.save(user);
     }
 
-    @Transactional
     public void resendVerification(String email) {
-        userRepository.findByEmail(email).ifPresent(user -> {
+        String[] data = self.prepareResend(email);
+        if (data != null) {
+            sendVerificationEmail(data[0], data[1]);
+        }
+    }
+
+    @Transactional
+    public String[] prepareResend(String email) {
+        return userRepository.findByEmail(email).map(user -> {
             if (user.isEmailVerified() || !"local".equals(user.getOauthProvider())) {
-                return;
+                return null;
             }
             if (user.getTokenExpiresAt() != null) {
                 OffsetDateTime issuedAt = user.getTokenExpiresAt().minusHours(1);
                 if (OffsetDateTime.now(ZoneOffset.UTC).isBefore(issuedAt.plusMinutes(5))) {
-                    return; // rate-limit: token issued less than 5 minutes ago
+                    return null;
                 }
             }
-            generateAndSendToken(user);
-        });
+            String token = UUID.randomUUID().toString();
+            user.setVerificationToken(token);
+            user.setTokenExpiresAt(OffsetDateTime.now(ZoneOffset.UTC).plusHours(1));
+            userRepository.save(user);
+            return new String[]{user.getEmail(), token};
+        }).orElse(null);
     }
 
     private void sendVerificationEmail(String toEmail, String token) {

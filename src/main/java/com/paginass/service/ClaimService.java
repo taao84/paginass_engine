@@ -57,6 +57,7 @@ public class ClaimService {
         return toDto(businessClaimRepository.save(claim), business.getName(), business.getSlug(), claimant.getFullName(), claimant.getEmail());
     }
 
+    @Transactional(readOnly = true)
     public List<ClaimResponseDto> getPendingClaims() {
         return businessClaimRepository.findByStatus(ClaimStatus.PENDING)
                 .stream()
@@ -126,13 +127,9 @@ public class ClaimService {
     }
 
     private ClaimResponseDto enrichDto(BusinessClaim claim) {
-        String businessName = businessProfileRepository.findById(claim.getBusinessId())
-                .map(BusinessProfile::getName)
-                .orElse("Unknown");
-
-        String businessSlug = businessProfileRepository.findById(claim.getBusinessId())
-                .map(BusinessProfile::getSlug)
-                .orElse(null);
+        BusinessProfile business = businessProfileRepository.findById(claim.getBusinessId()).orElse(null);
+        String businessName = business != null ? business.getName() : "Unknown";
+        String businessSlug = business != null ? business.getSlug() : null;
 
         User claimant = userRepository.findById(claim.getClaimantId()).orElse(null);
         String claimantName  = claimant != null ? claimant.getFullName() : null;

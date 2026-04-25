@@ -32,6 +32,7 @@ class EmailVerificationServiceTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(service, "frontendUrl", "http://localhost:3000");
+        ReflectionTestUtils.setField(service, "self", service);
     }
 
     @Test

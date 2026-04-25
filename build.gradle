@@ -51,6 +51,8 @@ dependencies {
 
     // Email
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.springframework.retry:spring-retry'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
