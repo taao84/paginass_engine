@@ -12,7 +12,8 @@ public record ProfileSetupRequestDto(
         String description,
         String phones,
         String contactHours,
-        String services
+        String services,
+        Boolean deliversToHome
 ) {
     public enum AccountType { PERSON, BUSINESS }
 }

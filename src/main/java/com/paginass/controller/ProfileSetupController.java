@@ -58,6 +58,7 @@ public class ProfileSetupController {
         profile.setContactInfo(contactInfo);
 
         profile.setTags(parseCsv(request.services()));
+        profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
 
         BusinessProfile saved = businessProfileRepository.save(profile);
         return ResponseEntity.status(HttpStatus.CREATED)

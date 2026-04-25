@@ -103,6 +103,7 @@ public class BusinessProfileService {
         profile.setContactInfo(contactInfo);
 
         profile.setTags(parseCsv(request.services()));
+        profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
 
         return toDetailDto(businessProfileRepository.save(profile));
     }
@@ -254,7 +255,8 @@ public class BusinessProfileService {
                 p.isMiniSiteEnabled(),
                 p.isActive(),
                 p.isClaimed(),
-                p.getCreatedBy()
+                p.getCreatedBy(),
+                p.isDeliversToHome()
         );
     }
 
@@ -279,7 +281,7 @@ public class BusinessProfileService {
     }
 
     // Column positions must match the SELECT order in BusinessProfileRepository.searchBusinessProfiles:
-    // [0] id, [1] name, [2] slug, [3] biz_type, [4] description, [5] tags, [6] contact_info, [7] score, [8] mini_site_enabled, [9] is_claimed
+    // [0] id, [1] name, [2] slug, [3] biz_type, [4] description, [5] tags, [6] contact_info, [7] score, [8] mini_site_enabled, [9] is_claimed, [10] delivers_to_home
     private BusinessProfileSummaryDto mapRow(Object[] row) {
         try {
             UUID id = UUID.fromString((String) row[0]);
@@ -302,7 +304,9 @@ public class BusinessProfileService {
 
             boolean isClaimed = row[9] != null && (Boolean) row[9];
 
-            return new BusinessProfileSummaryDto(id, name, slug, bizType, description, tags, contactInfo, score, miniSiteEnabled, isClaimed);
+            boolean deliversToHome = row[10] != null && (Boolean) row[10];
+
+            return new BusinessProfileSummaryDto(id, name, slug, bizType, description, tags, contactInfo, score, miniSiteEnabled, isClaimed, deliversToHome);
         } catch (Exception e) {
             throw new RuntimeException("Failed to map search result row", e);
         }

@@ -8,5 +8,6 @@ public record BusinessProfileUpdateRequestDto(
         String phones,
         String contactHours,
         String address,
-        String services
+        String services,
+        Boolean deliversToHome
 ) {}

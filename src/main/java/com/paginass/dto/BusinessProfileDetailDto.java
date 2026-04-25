@@ -16,5 +16,6 @@ public record BusinessProfileDetailDto(
         boolean miniSiteEnabled,
         boolean isActive,
         boolean isClaimed,
-        UUID createdBy
+        UUID createdBy,
+        boolean deliversToHome
 ) {}

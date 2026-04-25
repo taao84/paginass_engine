@@ -68,6 +68,9 @@ public class BusinessProfile {
     @Column(name = "mini_site_enabled", nullable = false)
     private boolean miniSiteEnabled = false;
 
+    @Column(name = "delivers_to_home", nullable = false)
+    private boolean deliversToHome = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false,
             columnDefinition = "TIMESTAMP WITH TIME ZONE")
