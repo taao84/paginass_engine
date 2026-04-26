@@ -236,6 +236,7 @@ public class BusinessProfileService {
 
     private BusinessMiniSiteDto toMiniSiteDto(BusinessProfile profile) {
         return new BusinessMiniSiteDto(
+                profile.getId(),
                 profile.getName(),
                 profile.getDescription(),
                 profile.getContactInfo(),
