@@ -241,7 +241,8 @@ public class BusinessProfileService {
                 profile.getContactInfo(),
                 toPublicUrls(profile.getImageUrls()),
                 profile.getTags() != null ? profile.getTags() : List.of(),
-                profile.isMiniSiteEnabled()
+                profile.isMiniSiteEnabled(),
+                profile.isClaimed()
         );
     }
 
