@@ -12,4 +12,6 @@ public interface BusinessClaimRepository extends JpaRepository<BusinessClaim, UU
     List<BusinessClaim> findByStatus(ClaimStatus status);
 
     boolean existsByBusinessIdAndClaimantIdAndStatus(UUID businessId, UUID claimantId, ClaimStatus status);
+
+    boolean existsByBusinessIdAndStatus(UUID businessId, ClaimStatus status);
 }

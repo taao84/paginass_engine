@@ -10,8 +10,10 @@ import com.paginass.dto.DirectoryEntryDto;
 import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.SearchResponseDto;
 import com.paginass.entity.BusinessProfile;
+import com.paginass.entity.ClaimStatus;
 import com.paginass.entity.User;
 import com.paginass.entity.UserRole;
+import com.paginass.repository.BusinessClaimRepository;
 import com.paginass.repository.BusinessProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -40,6 +42,7 @@ public class BusinessProfileService {
     private static final int MAX_IMAGES = 5;
 
     private final BusinessProfileRepository businessProfileRepository;
+    private final BusinessClaimRepository businessClaimRepository;
     private final StorageService storageService;
     private final ObjectMapper objectMapper;
 
@@ -235,6 +238,8 @@ public class BusinessProfileService {
     // --- Private helpers ---
 
     private BusinessMiniSiteDto toMiniSiteDto(BusinessProfile profile) {
+        boolean hasPendingClaim = businessClaimRepository
+                .existsByBusinessIdAndStatus(profile.getId(), ClaimStatus.PENDING);
         return new BusinessMiniSiteDto(
                 profile.getId(),
                 profile.getName(),
@@ -243,7 +248,8 @@ public class BusinessProfileService {
                 toPublicUrls(profile.getImageUrls()),
                 profile.getTags() != null ? profile.getTags() : List.of(),
                 profile.isMiniSiteEnabled(),
-                profile.isClaimed()
+                profile.isClaimed(),
+                hasPendingClaim
         );
     }
 

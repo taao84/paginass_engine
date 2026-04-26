@@ -12,5 +12,6 @@ public record BusinessMiniSiteDto(
         List<String> imageUrls,
         List<String> tags,
         boolean miniSiteEnabled,
-        boolean isClaimed
+        boolean isClaimed,
+        boolean hasPendingClaim
 ) {}
