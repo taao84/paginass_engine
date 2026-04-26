@@ -32,9 +32,9 @@ public class BusinessProfileController {
     @GetMapping
     public ResponseEntity<List<BusinessProfileDetailDto>> listMyBusinesses(Authentication authentication) {
         User user = resolveUser(authentication);
-        if (user.getRole() == UserRole.CONTRIBUTOR) {
+        if (user.getRole() == UserRole.CONTRIBUTOR || user.getRole() == UserRole.EDITOR) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Contributors do not have access to Mis negocios");
+                    "Only owners and admins can access Mis negocios");
         }
         return ResponseEntity.ok(businessProfileService.getProfilesByOwner(user.getId()));
     }
@@ -45,6 +45,11 @@ public class BusinessProfileController {
             Authentication authentication) {
         User user = resolveUser(authentication);
         return ResponseEntity.ok(businessProfileService.getProfileByOwner(id, user.getId()));
+    }
+
+    @GetMapping("/{id}/for-edit")
+    public ResponseEntity<BusinessProfileDetailDto> getBusinessForEdit(@PathVariable UUID id) {
+        return ResponseEntity.ok(businessProfileService.getProfileById(id));
     }
 
     @PutMapping("/{id}")

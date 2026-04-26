@@ -4,17 +4,21 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.BusinessProfileDetailDto;
+import com.paginass.dto.BusinessProfileEditDto;
 import com.paginass.dto.BusinessProfileSummaryDto;
 import com.paginass.dto.BusinessProfileUpdateRequestDto;
 import com.paginass.dto.DirectoryEntryDto;
 import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.SearchResponseDto;
 import com.paginass.entity.BusinessProfile;
+import com.paginass.entity.BusinessProfileEdit;
 import com.paginass.entity.ClaimStatus;
 import com.paginass.entity.User;
 import com.paginass.entity.UserRole;
 import com.paginass.repository.BusinessClaimRepository;
+import com.paginass.repository.BusinessProfileEditRepository;
 import com.paginass.repository.BusinessProfileRepository;
+import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,6 +27,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,6 +36,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -43,6 +50,8 @@ public class BusinessProfileService {
 
     private final BusinessProfileRepository businessProfileRepository;
     private final BusinessClaimRepository businessClaimRepository;
+    private final BusinessProfileEditRepository businessProfileEditRepository;
+    private final UserRepository userRepository;
     private final StorageService storageService;
     private final ObjectMapper objectMapper;
 
@@ -98,6 +107,7 @@ public class BusinessProfileService {
         return toDetailDto(profile);
     }
 
+    @Transactional
     public BusinessProfileDetailDto updateProfile(UUID profileId, User requestingUser, BusinessProfileUpdateRequestDto request) {
         BusinessProfile profile = findProfileOrThrow(profileId);
         authorizeEdit(profile, requestingUser);
@@ -114,7 +124,9 @@ public class BusinessProfileService {
         profile.setTags(parseCsv(request.services()));
         profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
 
-        return toDetailDto(businessProfileRepository.save(profile));
+        BusinessProfile saved = businessProfileRepository.save(profile);
+        recordEditSnapshot(saved, requestingUser);
+        return toDetailDto(saved);
     }
 
     public BusinessProfileDetailDto toggleMiniSite(UUID businessId, User requestingUser) {
@@ -206,9 +218,50 @@ public class BusinessProfileService {
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
+    // --- Admin: edit history & restore ---
+
+    @Transactional(readOnly = true)
+    public List<BusinessProfileEditDto> getEditHistory(UUID profileId) {
+        findProfileOrThrow(profileId);
+        List<BusinessProfileEdit> edits = businessProfileEditRepository
+                .findByBusinessProfileIdOrderByEditedAtDesc(profileId);
+
+        Set<UUID> editorIds = edits.stream().map(BusinessProfileEdit::getEditedBy).collect(Collectors.toSet());
+        Map<UUID, String> nameById = userRepository.findAllById(editorIds).stream()
+                .collect(Collectors.toMap(
+                        User::getId,
+                        u -> u.getFullName() != null ? u.getFullName() : u.getEmail()));
+
+        return edits.stream()
+                .map(e -> new BusinessProfileEditDto(
+                        e.getId(),
+                        e.getBusinessProfileId(),
+                        e.getEditedBy(),
+                        nameById.getOrDefault(e.getEditedBy(), "Unknown"),
+                        e.getEditedAt(),
+                        e.getSnapshot()))
+                .toList();
+    }
+
+    @Transactional
+    public BusinessProfileDetailDto restoreFromEdit(UUID profileId, UUID editId, User admin) {
+        BusinessProfile profile = findProfileOrThrow(profileId);
+        BusinessProfileEdit edit = businessProfileEditRepository.findById(editId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Edit record not found"));
+
+        if (!edit.getBusinessProfileId().equals(profileId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Edit does not belong to this business");
+        }
+
+        applySnapshot(profile, edit.getSnapshot());
+        BusinessProfile saved = businessProfileRepository.save(profile);
+        recordEditSnapshot(saved, admin);
+        return toDetailDto(saved);
+    }
+
     // --- Authorization helpers ---
 
-    private void authorizeEdit(BusinessProfile profile, User user) {
+    void authorizeEdit(BusinessProfile profile, User user) {
         if (user.getRole() == UserRole.ADMIN) return;
 
         if (profile.isClaimed()) {
@@ -217,8 +270,8 @@ public class BusinessProfileService {
                     "Only the business owner or an admin can edit a claimed business");
         }
 
-        // Unclaimed: CONTRIBUTOR and OWNER can both edit
-        if (user.getRole() == UserRole.CONTRIBUTOR || user.getRole() == UserRole.OWNER) return;
+        // Unclaimed: only EDITOR may edit
+        if (user.getRole() == UserRole.EDITOR) return;
 
         throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                 "You do not have permission to edit this business");
@@ -233,6 +286,44 @@ public class BusinessProfileService {
 
         throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                 "Only the business owner can manage the mini-site");
+    }
+
+    // --- Edit snapshot helpers ---
+
+    private void recordEditSnapshot(BusinessProfile profile, User editor) {
+        Map<String, Object> snapshot = new HashMap<>();
+        snapshot.put("name", profile.getName());
+        snapshot.put("description", profile.getDescription());
+        snapshot.put("bizType", profile.getBizType() != null ? profile.getBizType().name() : null);
+        snapshot.put("contactInfo", profile.getContactInfo());
+        snapshot.put("tags", profile.getTags());
+        snapshot.put("imageUrls", profile.getImageUrls());
+        snapshot.put("deliversToHome", profile.isDeliversToHome());
+
+        BusinessProfileEdit edit = new BusinessProfileEdit();
+        edit.setBusinessProfileId(profile.getId());
+        edit.setEditedBy(editor.getId());
+        edit.setSnapshot(snapshot);
+        edit.setEditedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        businessProfileEditRepository.save(edit);
+    }
+
+    private void applySnapshot(BusinessProfile profile, Map<String, Object> snapshot) {
+        if (snapshot.get("name") instanceof String name) profile.setName(name);
+        if (snapshot.get("description") instanceof String desc) profile.setDescription(desc);
+        if (snapshot.get("contactInfo") instanceof Map<?, ?> ci) {
+            profile.setContactInfo(ci.entrySet().stream()
+                    .collect(Collectors.toMap(
+                            e -> (String) e.getKey(),
+                            e -> String.valueOf(e.getValue()))));
+        }
+        if (snapshot.get("tags") instanceof List<?> tags) {
+            profile.setTags(tags.stream().map(Object::toString).toList());
+        }
+        if (snapshot.get("imageUrls") instanceof List<?> urls) {
+            profile.setImageUrls(urls.stream().map(Object::toString).toList());
+        }
+        if (snapshot.get("deliversToHome") instanceof Boolean dth) profile.setDeliversToHome(dth);
     }
 
     // --- Private helpers ---
