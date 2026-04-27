@@ -53,6 +53,15 @@ public class User {
     @Column(name = "token_expires_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private OffsetDateTime tokenExpiresAt;
 
+    @Column(name = "is_enabled", nullable = false)
+    private boolean isEnabled = true;
+
+    @Column(name = "reset_token", length = 255)
+    private String resetToken;
+
+    @Column(name = "reset_token_expires_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime resetTokenExpiresAt;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "role", nullable = false, columnDefinition = "user_role")

@@ -4,9 +4,11 @@ import com.paginass.dto.AuthResponseDto;
 import com.paginass.dto.CurrentUserDto;
 import com.paginass.dto.RegisterRequestDto;
 import com.paginass.dto.ResendVerificationRequestDto;
+import com.paginass.dto.ResetPasswordConfirmRequestDto;
 import com.paginass.dto.UpdateUserProfileRequestDto;
 import com.paginass.entity.User;
 import com.paginass.repository.UserRepository;
+import com.paginass.service.AdminUserService;
 import com.paginass.service.EmailVerificationService;
 import com.paginass.service.LocalAuthService;
 import jakarta.validation.Valid;
@@ -28,6 +30,7 @@ public class AuthController {
     private final LocalAuthService localAuthService;
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
+    private final AdminUserService adminUserService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
@@ -50,6 +53,12 @@ public class AuthController {
     public ResponseEntity<Void> resendVerification(@Valid @RequestBody ResendVerificationRequestDto request) {
         emailVerificationService.resendVerification(request.email());
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password/confirm")
+    public ResponseEntity<Void> confirmPasswordReset(@Valid @RequestBody ResetPasswordConfirmRequestDto request) {
+        adminUserService.confirmPasswordReset(request.token(), request.newPassword());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")

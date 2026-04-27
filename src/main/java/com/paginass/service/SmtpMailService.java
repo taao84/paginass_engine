@@ -49,4 +49,31 @@ public class SmtpMailService implements MailService {
     public void recoverSendVerificationEmail(MailException e, String to, String verifyLink) {
         log.error("Failed to send verification email to {} after retries: {}", to, e.getMessage());
     }
+
+    @Override
+    @Retryable(
+        retryFor = MailException.class,
+        maxAttemptsExpression = "${app.mail.retry.max-attempts:2}",
+        backoff = @Backoff(delayExpression = "${app.mail.retry.delay-ms:1000}")
+    )
+    public void sendPasswordResetEmail(String to, String resetLink) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailFrom);
+        message.setTo(to);
+        message.setSubject("Restablece tu contraseña — Paginass");
+        message.setText(
+                "Hola,\n\n" +
+                "Haz clic en el siguiente enlace para restablecer tu contraseña:\n\n" +
+                resetLink + "\n\n" +
+                "El enlace expira en 24 horas.\n\n" +
+                "Si no solicitaste este cambio, puedes ignorar este mensaje.\n\n" +
+                "— El equipo de Paginass"
+        );
+        mailSender.send(message);
+    }
+
+    @Recover
+    public void recoverSendPasswordResetEmail(MailException e, String to, String resetLink) {
+        log.error("Failed to send password reset email to {} after retries: {}", to, e.getMessage());
+    }
 }

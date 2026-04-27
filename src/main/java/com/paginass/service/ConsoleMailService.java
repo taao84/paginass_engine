@@ -15,4 +15,9 @@ public class ConsoleMailService implements MailService {
     public void sendVerificationEmail(String to, String verifyLink) {
         log.info("[DEV] Verification email for {} → {}", to, verifyLink);
     }
+
+    @Override
+    public void sendPasswordResetEmail(String to, String resetLink) {
+        log.info("[DEV] Password reset email for {} → {}", to, resetLink);
+    }
 }

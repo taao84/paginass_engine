@@ -77,3 +77,31 @@ resources:
         editor: denied
         owner: allowed
         admin: allowed
+
+  - name: User Management
+    rules:
+      - operation: List and search users
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
+      - operation: Assign role to user
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
+      - operation: Disable or enable user account
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
+      - operation: Generate temporary password
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
+      - operation: Send password reset email
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
