@@ -143,7 +143,7 @@ public class SecurityConfig {
             })
 
             .formLogin(form -> form
-                .loginProcessingUrl("/login")
+                .loginProcessingUrl("/api/auth/login")
                 .successHandler(loginSuccessHandler())
                 .failureHandler(loginFailureHandler())
                 .permitAll()
