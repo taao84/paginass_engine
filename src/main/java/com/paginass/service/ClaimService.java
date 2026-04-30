@@ -10,16 +10,22 @@ import com.paginass.repository.BusinessClaimRepository;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ClaimService {
@@ -67,6 +73,7 @@ public class ClaimService {
 
     @Transactional
     public ClaimResponseDto resolveClaim(UUID claimId, boolean approve) {
+        User admin = resolveCurrentUser();
         BusinessClaim claim = businessClaimRepository.findById(claimId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Claim not found"));
@@ -95,11 +102,13 @@ public class ClaimService {
             userRepository.save(claimant);
         }
 
+        log.info("AUDIT claim_resolved claimId={} approved={} adminId={}", claimId, approve, admin.getId());
         return enrichDto(claim);
     }
 
     @Transactional
     public void revokeOwnership(UUID businessId) {
+        User admin = resolveCurrentUser();
         BusinessProfile business = businessProfileRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Business not found"));
@@ -115,7 +124,6 @@ public class ClaimService {
         business.setClaimed(false);
         businessProfileRepository.save(business);
 
-        // does this user still own any business?
         boolean stillOwnsOtherBusinesses = businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(previousOwnerId);
         if (!stillOwnsOtherBusinesses) {
             User formerOwner = userRepository.findById(previousOwnerId)
@@ -124,6 +132,15 @@ public class ClaimService {
             formerOwner.setRole(UserRole.CONTRIBUTOR);
             userRepository.save(formerOwner);
         }
+
+        log.info("AUDIT ownership_revoked businessId={} adminId={}", businessId, admin.getId());
+    }
+
+    private User resolveCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getPrincipal() instanceof UserDetails ud ? ud.getUsername() : auth.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
     }
 
     private ClaimResponseDto enrichDto(BusinessClaim claim) {

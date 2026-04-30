@@ -10,12 +10,17 @@ import com.paginass.repository.BusinessClaimRepository;
 import com.paginass.repository.BusinessProfileEditRepository;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -43,79 +48,19 @@ class BusinessProfileServiceTest {
     @InjectMocks
     private BusinessProfileService service;
 
-    // -------------------------------------------------------------------------
-    // authorizeEdit — unclaimed business
-    // -------------------------------------------------------------------------
-
-    @Test
-    void authorizeEdit_adminCanEditUnclaimed() {
-        BusinessProfile profile = unclaimedProfile();
-        User admin = userWithRole(UserRole.ADMIN);
-        // should not throw
-        service.authorizeEdit(profile, admin);
+    @BeforeEach
+    void setupSecurityContext() {
+        var auth = new UsernamePasswordAuthenticationToken(
+                new org.springframework.security.core.userdetails.User(
+                        "admin@example.com", "", List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))),
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
-    @Test
-    void authorizeEdit_editorCanEditUnclaimed() {
-        BusinessProfile profile = unclaimedProfile();
-        User editor = userWithRole(UserRole.EDITOR);
-        // should not throw
-        service.authorizeEdit(profile, editor);
-    }
-
-    @Test
-    void authorizeEdit_contributorCannotEditUnclaimed() {
-        BusinessProfile profile = unclaimedProfile();
-        User contributor = userWithRole(UserRole.CONTRIBUTOR);
-        assertThatThrownBy(() -> service.authorizeEdit(profile, contributor))
-                .isInstanceOf(ResponseStatusException.class);
-    }
-
-    @Test
-    void authorizeEdit_ownerCannotEditUnclaimedAfterBreq017() {
-        BusinessProfile profile = unclaimedProfile();
-        User owner = userWithRole(UserRole.OWNER);
-        assertThatThrownBy(() -> service.authorizeEdit(profile, owner))
-                .isInstanceOf(ResponseStatusException.class);
-    }
-
-    // -------------------------------------------------------------------------
-    // authorizeEdit — claimed business
-    // -------------------------------------------------------------------------
-
-    @Test
-    void authorizeEdit_ownerCanEditOwnClaimed() {
-        UUID ownerId = UUID.randomUUID();
-        BusinessProfile profile = claimedProfile(ownerId);
-        User owner = userWithRole(UserRole.OWNER);
-        owner.setId(ownerId);
-        // should not throw
-        service.authorizeEdit(profile, owner);
-    }
-
-    @Test
-    void authorizeEdit_ownerCannotEditOthersClaimed() {
-        BusinessProfile profile = claimedProfile(UUID.randomUUID());
-        User owner = userWithRole(UserRole.OWNER);
-        owner.setId(UUID.randomUUID()); // different owner
-        assertThatThrownBy(() -> service.authorizeEdit(profile, owner))
-                .isInstanceOf(ResponseStatusException.class);
-    }
-
-    @Test
-    void authorizeEdit_editorCannotEditClaimed() {
-        BusinessProfile profile = claimedProfile(UUID.randomUUID());
-        User editor = userWithRole(UserRole.EDITOR);
-        assertThatThrownBy(() -> service.authorizeEdit(profile, editor))
-                .isInstanceOf(ResponseStatusException.class);
-    }
-
-    @Test
-    void authorizeEdit_adminCanEditClaimed() {
-        BusinessProfile profile = claimedProfile(UUID.randomUUID());
-        User admin = userWithRole(UserRole.ADMIN);
-        // should not throw
-        service.authorizeEdit(profile, admin);
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
     }
 
     // -------------------------------------------------------------------------
@@ -197,14 +142,16 @@ class BusinessProfileServiceTest {
 
         User admin = userWithRole(UserRole.ADMIN);
         admin.setId(adminId);
+        admin.setEmail("admin@example.com");
 
         when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
         when(businessProfileEditRepository.findById(editId)).thenReturn(Optional.of(edit));
         when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(storageService.toPublicUrl(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
-        service.restoreFromEdit(businessId, editId, admin);
+        service.restoreFromEdit(businessId, editId);
 
         assertThat(profile.getName()).isEqualTo("Restored Name");
         assertThat(profile.getDescription()).isEqualTo("Restored desc");
@@ -229,14 +176,16 @@ class BusinessProfileServiceTest {
 
         User admin = userWithRole(UserRole.ADMIN);
         admin.setId(adminId);
+        admin.setEmail("admin@example.com");
 
         when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
         when(businessProfileEditRepository.findById(editId)).thenReturn(Optional.of(edit));
         when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(storageService.toPublicUrl(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
-        service.restoreFromEdit(businessId, editId, admin);
+        service.restoreFromEdit(businessId, editId);
 
         ArgumentCaptor<BusinessProfileEdit> captor = ArgumentCaptor.forClass(BusinessProfileEdit.class);
         verify(businessProfileEditRepository).save(captor.capture());
@@ -259,12 +208,14 @@ class BusinessProfileServiceTest {
         edit.setId(editId);
         edit.setBusinessProfileId(UUID.randomUUID()); // different business
 
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
         when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
         when(businessProfileEditRepository.findById(editId)).thenReturn(Optional.of(edit));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
-        User admin = userWithRole(UserRole.ADMIN);
-
-        assertThatThrownBy(() -> service.restoreFromEdit(businessId, editId, admin))
+        assertThatThrownBy(() -> service.restoreFromEdit(businessId, editId))
                 .isInstanceOf(ResponseStatusException.class);
     }
 
@@ -278,13 +229,6 @@ class BusinessProfileServiceTest {
         p.setBizType(BusinessType.INFORMAL);
         p.setName("Test Business");
         p.setSlug("test-business");
-        return p;
-    }
-
-    private BusinessProfile claimedProfile(UUID ownerId) {
-        BusinessProfile p = unclaimedProfile();
-        p.setOwnerId(ownerId);
-        p.setClaimed(true);
         return p;
     }
 

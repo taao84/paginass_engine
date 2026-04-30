@@ -4,16 +4,24 @@ import com.paginass.entity.BusinessClaim;
 import com.paginass.entity.BusinessProfile;
 import com.paginass.entity.ClaimStatus;
 import com.paginass.entity.User;
+import com.paginass.entity.UserRole;
 import com.paginass.repository.BusinessClaimRepository;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,8 +39,28 @@ class ClaimServiceTest {
     @InjectMocks
     private ClaimService claimService;
 
+    private User admin;
+
+    @BeforeEach
+    void setupSecurityContext() {
+        admin = new User();
+        admin.setId(UUID.randomUUID());
+        admin.setEmail("admin@example.com");
+        admin.setRole(UserRole.ADMIN);
+
+        UserDetails principal = new org.springframework.security.core.userdetails.User(
+                "admin@example.com", "", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
-    void resolveClaim_setsResolvedAtInUTC() {
+    void resolveClaim_approval_setsResolvedAtInUTC() {
         UUID claimId = UUID.randomUUID();
         UUID businessId = UUID.randomUUID();
         UUID claimantId = UUID.randomUUID();
@@ -51,6 +79,7 @@ class ClaimServiceTest {
         claimant.setFullName("Test User");
         claimant.setEmail("test@example.com");
 
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
         when(businessClaimRepository.findById(claimId)).thenReturn(Optional.of(claim));
         when(businessClaimRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(business));
@@ -77,6 +106,7 @@ class ClaimServiceTest {
         claimant.setFullName("Test User");
         claimant.setEmail("test@example.com");
 
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
         when(businessClaimRepository.findById(claimId)).thenReturn(Optional.of(claim));
         when(businessClaimRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(userRepository.findById(claim.getClaimantId())).thenReturn(Optional.of(claimant));
@@ -85,5 +115,33 @@ class ClaimServiceTest {
 
         assertThat(claim.getResolvedAt()).isNotNull();
         assertThat(claim.getResolvedAt().getOffset()).isEqualTo(ZoneOffset.UTC);
+    }
+
+    @Test
+    void revokeOwnership_clearsOwnerAndSetsContributorRole() {
+        UUID businessId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+
+        BusinessProfile business = new BusinessProfile();
+        business.setId(businessId);
+        business.setClaimed(true);
+        business.setOwnerId(ownerId);
+
+        User formerOwner = new User();
+        formerOwner.setId(ownerId);
+        formerOwner.setRole(UserRole.OWNER);
+
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(business));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(ownerId)).thenReturn(false);
+        when(userRepository.findById(ownerId)).thenReturn(Optional.of(formerOwner));
+        when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        claimService.revokeOwnership(businessId);
+
+        assertThat(business.isClaimed()).isFalse();
+        assertThat(business.getOwnerId()).isNull();
+        assertThat(formerOwner.getRole()).isEqualTo(UserRole.CONTRIBUTOR);
     }
 }

@@ -14,13 +14,16 @@ import com.paginass.entity.BusinessProfile;
 import com.paginass.entity.BusinessProfileEdit;
 import com.paginass.entity.ClaimStatus;
 import com.paginass.entity.User;
-import com.paginass.entity.UserRole;
 import com.paginass.repository.BusinessClaimRepository;
 import com.paginass.repository.BusinessProfileEditRepository;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -86,11 +89,18 @@ public class BusinessProfileService {
     }
 
     @Transactional(readOnly = true)
-    public List<BusinessProfileDetailDto> getProfilesByOwner(UUID ownerId) {
-        return businessProfileRepository.findByOwnerIdAndIsClaimedTrueAndIsActiveTrue(ownerId)
+    public List<BusinessProfileDetailDto> getProfilesByOwner() {
+        User user = resolveCurrentUser();
+        return businessProfileRepository.findByOwnerIdAndIsClaimedTrueAndIsActiveTrue(user.getId())
                 .stream()
                 .map(this::toDetailDto)
                 .toList();
+    }
+
+    @PreAuthorize("hasRole('ADMIN') or @bizAuth.isOwnerOfClaimed(#profileId)")
+    @Transactional(readOnly = true)
+    public BusinessProfileDetailDto getProfileByOwner(UUID profileId) {
+        return toDetailDto(findProfileOrThrow(profileId));
     }
 
     @Transactional(readOnly = true)
@@ -100,17 +110,15 @@ public class BusinessProfileService {
         return toDetailDto(profile);
     }
 
-    @Transactional(readOnly = true)
-    public BusinessProfileDetailDto getProfileByOwner(UUID profileId, UUID ownerId) {
-        BusinessProfile profile = businessProfileRepository.findByIdAndOwnerIdAndIsClaimedTrue(profileId, ownerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
-        return toDetailDto(profile);
-    }
-
+    @PreAuthorize("""
+            hasRole('ADMIN') or
+            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#profileId)) or
+            (hasRole('EDITOR') and @bizAuth.isUnclaimed(#profileId))
+            """)
     @Transactional
-    public BusinessProfileDetailDto updateProfile(UUID profileId, User requestingUser, BusinessProfileUpdateRequestDto request) {
+    public BusinessProfileDetailDto updateProfile(UUID profileId, BusinessProfileUpdateRequestDto request) {
+        User user = resolveCurrentUser();
         BusinessProfile profile = findProfileOrThrow(profileId);
-        authorizeEdit(profile, requestingUser);
 
         profile.setName(request.name());
         profile.setDescription(request.description());
@@ -125,13 +133,16 @@ public class BusinessProfileService {
         profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
 
         BusinessProfile saved = businessProfileRepository.save(profile);
-        recordEditSnapshot(saved, requestingUser);
+        recordEditSnapshot(saved, user);
         return toDetailDto(saved);
     }
 
-    public BusinessProfileDetailDto toggleMiniSite(UUID businessId, User requestingUser) {
+    @PreAuthorize("""
+            hasRole('ADMIN') or
+            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#businessId))
+            """)
+    public BusinessProfileDetailDto toggleMiniSite(UUID businessId) {
         BusinessProfile profile = findProfileOrThrow(businessId);
-        authorizeMiniSiteToggle(profile, requestingUser);
         profile.setMiniSiteEnabled(!profile.isMiniSiteEnabled());
         return toDetailDto(businessProfileRepository.save(profile));
     }
@@ -153,9 +164,13 @@ public class BusinessProfileService {
         return toMiniSiteDto(profile);
     }
 
-    public BusinessProfileDetailDto uploadImage(UUID businessId, User requestingUser, MultipartFile file) {
+    @PreAuthorize("""
+            hasRole('ADMIN') or
+            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#businessId)) or
+            (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
+            """)
+    public BusinessProfileDetailDto uploadImage(UUID businessId, MultipartFile file) {
         BusinessProfile profile = findProfileOrThrow(businessId);
-        authorizeEdit(profile, requestingUser);
 
         List<String> currentPaths = profile.getImageUrls() == null
                 ? new ArrayList<>() : new ArrayList<>(profile.getImageUrls());
@@ -178,9 +193,13 @@ public class BusinessProfileService {
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
-    public BusinessProfileDetailDto reorderImages(UUID businessId, User requestingUser, List<String> orderedUrls) {
+    @PreAuthorize("""
+            hasRole('ADMIN') or
+            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#businessId)) or
+            (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
+            """)
+    public BusinessProfileDetailDto reorderImages(UUID businessId, List<String> orderedUrls) {
         BusinessProfile profile = findProfileOrThrow(businessId);
-        authorizeEdit(profile, requestingUser);
 
         List<String> currentPaths = profile.getImageUrls() != null ? profile.getImageUrls() : List.of();
         List<String> orderedPaths = orderedUrls.stream()
@@ -198,9 +217,13 @@ public class BusinessProfileService {
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
-    public BusinessProfileDetailDto deleteImage(UUID businessId, User requestingUser, int imageIndex) {
+    @PreAuthorize("""
+            hasRole('ADMIN') or
+            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#businessId)) or
+            (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
+            """)
+    public BusinessProfileDetailDto deleteImage(UUID businessId, int imageIndex) {
         BusinessProfile profile = findProfileOrThrow(businessId);
-        authorizeEdit(profile, requestingUser);
 
         List<String> currentPaths = new ArrayList<>(profile.getImageUrls());
         if (imageIndex < 0 || imageIndex >= currentPaths.size()) {
@@ -243,8 +266,10 @@ public class BusinessProfileService {
                 .toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
-    public BusinessProfileDetailDto restoreFromEdit(UUID profileId, UUID editId, User admin) {
+    public BusinessProfileDetailDto restoreFromEdit(UUID profileId, UUID editId) {
+        User admin = resolveCurrentUser();
         BusinessProfile profile = findProfileOrThrow(profileId);
         BusinessProfileEdit edit = businessProfileEditRepository.findById(editId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Edit record not found"));
@@ -259,36 +284,16 @@ public class BusinessProfileService {
         return toDetailDto(saved);
     }
 
-    // --- Authorization helpers ---
+    // --- Private helpers ---
 
-    void authorizeEdit(BusinessProfile profile, User user) {
-        if (user.getRole() == UserRole.ADMIN) return;
-
-        if (profile.isClaimed()) {
-            if (user.getRole() == UserRole.OWNER && user.getId().equals(profile.getOwnerId())) return;
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Only the business owner or an admin can edit a claimed business");
-        }
-
-        // Unclaimed: only EDITOR may edit
-        if (user.getRole() == UserRole.EDITOR) return;
-
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "You do not have permission to edit this business");
+    private User resolveCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getPrincipal() instanceof UserDetails ud
+                ? ud.getUsername()
+                : auth.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
     }
-
-    private void authorizeMiniSiteToggle(BusinessProfile profile, User user) {
-        if (user.getRole() == UserRole.ADMIN) return;
-
-        if (user.getRole() == UserRole.OWNER
-                && profile.isClaimed()
-                && user.getId().equals(profile.getOwnerId())) return;
-
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Only the business owner can manage the mini-site");
-    }
-
-    // --- Edit snapshot helpers ---
 
     private void recordEditSnapshot(BusinessProfile profile, User editor) {
         Map<String, Object> snapshot = new HashMap<>();
@@ -325,8 +330,6 @@ public class BusinessProfileService {
         }
         if (snapshot.get("deliversToHome") instanceof Boolean dth) profile.setDeliversToHome(dth);
     }
-
-    // --- Private helpers ---
 
     private BusinessMiniSiteDto toMiniSiteDto(BusinessProfile profile) {
         boolean hasPendingClaim = businessClaimRepository

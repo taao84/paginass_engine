@@ -49,7 +49,8 @@ public class ClaimController {
     }
 
     @DeleteMapping("/api/admin/businesses/{id}/ownership")
-    public ResponseEntity<BusinessProfileDetailDto> revokeOwnership(@PathVariable UUID id) {
+    public ResponseEntity<BusinessProfileDetailDto> revokeOwnership(
+            @PathVariable UUID id) {
         claimService.revokeOwnership(id);
         return ResponseEntity.ok(businessProfileService.getProfileById(id));
     }
