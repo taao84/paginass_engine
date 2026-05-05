@@ -1,7 +1,8 @@
 package com.paginass.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
+import java.util.List;
 
 public record ProfileSetupRequestDto(
         @NotNull AccountType accountType,
@@ -12,7 +13,7 @@ public record ProfileSetupRequestDto(
         String description,
         String phones,
         String contactHours,
-        String services,
+        List<String> services,
         Boolean deliversToHome
 ) {
     public enum AccountType { PERSON, BUSINESS }

@@ -463,6 +463,87 @@ class BusinessProfileServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // updateProfile — tag normalization
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateProfile_normalizesTagsOnSave() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null,
+                List.of("Plomería", "Instalación Eléctrica", "PINTURA"),
+                false, null);
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getTags())
+                .containsExactlyInAnyOrder("plomeria", "instalacion electrica", "pintura");
+    }
+
+    @Test
+    void updateProfile_deduplicatesTagsAfterNormalization() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null,
+                List.of("ceramica", "Cerámica", "CERAMICA"),
+                false, null);
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getTags()).containsExactly("ceramica");
+    }
+
+    @Test
+    void updateProfile_handlesNullAndEmptyTagList() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var requestNull = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, null);
+        service.updateProfile(profileId, requestNull);
+        assertThat(profile.getTags()).isEmpty();
+
+        var requestEmpty = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, List.of(), false, null);
+        service.updateProfile(profileId, requestEmpty);
+        assertThat(profile.getTags()).isEmpty();
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 

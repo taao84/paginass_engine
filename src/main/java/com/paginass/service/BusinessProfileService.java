@@ -32,10 +32,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.text.Normalizer;
+import java.util.Arrays;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -174,7 +175,7 @@ public class BusinessProfileService {
         if (request.address() != null) contactInfo.put("address", request.address());
         profile.setContactInfo(contactInfo);
 
-        profile.setTags(parseCsv(request.services()));
+        profile.setTags(normalizeTags(request.services()));
         profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
 
         if (request.bizType() != null) {
@@ -437,11 +438,15 @@ public class BusinessProfileService {
         return filename.substring(filename.lastIndexOf('.'));
     }
 
-    private List<String> parseCsv(String csv) {
-        if (csv == null || csv.isBlank()) return List.of();
-        return Arrays.stream(csv.split(","))
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null) return List.of();
+        return tags.stream()
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
+                .map(s -> Normalizer.normalize(s, Normalizer.Form.NFD)
+                        .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                        .toLowerCase())
+                .distinct()
                 .collect(Collectors.toList());
     }
 

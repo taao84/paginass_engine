@@ -18,7 +18,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
+import java.text.Normalizer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +59,7 @@ public class ProfileSetupController {
         if (request.address() != null) contactInfo.put("address", request.address());
         profile.setContactInfo(contactInfo);
 
-        profile.setTags(parseCsv(request.services()));
+        profile.setTags(normalizeTags(request.services()));
         profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
 
         BusinessProfile saved = businessProfileRepository.save(profile);
@@ -94,11 +94,15 @@ public class ProfileSetupController {
                 : BusinessType.INFORMAL;
     }
 
-    private List<String> parseCsv(String csv) {
-        if (csv == null || csv.isBlank()) return List.of();
-        return Arrays.stream(csv.split(","))
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null) return List.of();
+        return tags.stream()
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
+                .map(s -> Normalizer.normalize(s, Normalizer.Form.NFD)
+                        .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                        .toLowerCase())
+                .distinct()
                 .collect(Collectors.toList());
     }
 }
