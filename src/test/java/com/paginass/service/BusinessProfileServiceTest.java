@@ -1,6 +1,8 @@
 package com.paginass.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paginass.dto.DirectoryPageDto;
+import com.paginass.dto.TagCloudItemDto;
 import com.paginass.entity.BusinessProfile;
 import com.paginass.entity.BusinessProfileEdit;
 import com.paginass.entity.BusinessType;
@@ -25,6 +27,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +37,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -288,6 +293,115 @@ class BusinessProfileServiceTest {
         service.updateProfile(profileId, request);
 
         assertThat(profile.getBizType()).isEqualTo(BusinessType.GIG);
+    }
+
+    // -------------------------------------------------------------------------
+    // getDirectoryByLetter
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getDirectoryByLetter_returnsEntriesForMatchingLetter() {
+        Object[] row = new Object[]{"Artesanias Lopez", "artesanias-lopez", "BRICK_AND_MORTAR"};
+        when(businessProfileRepository.findByFirstLetter("A", 50, 0))
+                .thenReturn(Collections.singletonList(row));
+        when(businessProfileRepository.countByFirstLetter("A")).thenReturn(1L);
+
+        DirectoryPageDto result = service.getDirectoryByLetter("A", 0);
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).name()).isEqualTo("Artesanias Lopez");
+        assertThat(result.content().get(0).bizType()).isEqualTo("BRICK_AND_MORTAR");
+        assertThat(result.totalElements()).isEqualTo(1L);
+    }
+
+    @Test
+    void getDirectoryByLetter_normalizesLowercaseLetter() {
+        when(businessProfileRepository.findByFirstLetter("B", 50, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countByFirstLetter("B")).thenReturn(0L);
+
+        DirectoryPageDto result = service.getDirectoryByLetter("b", 0);
+
+        verify(businessProfileRepository).findByFirstLetter("B", 50, 0);
+        assertThat(result.content()).isEmpty();
+        assertThat(result.totalElements()).isEqualTo(0L);
+    }
+
+    @Test
+    void getDirectoryByLetter_hashBucketUsesNonAlphaQuery() {
+        Object[] row = new Object[]{"3D Impresiones", "3d-impresiones", "GIG"};
+        when(businessProfileRepository.findByNonAlphaStart(50, 0))
+                .thenReturn(Collections.singletonList(row));
+        when(businessProfileRepository.countByNonAlphaStart()).thenReturn(1L);
+
+        DirectoryPageDto result = service.getDirectoryByLetter("#", 0);
+
+        verify(businessProfileRepository).findByNonAlphaStart(50, 0);
+        verify(businessProfileRepository, never()).findByFirstLetter(any(), anyInt(), anyInt());
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).name()).isEqualTo("3D Impresiones");
+    }
+
+    // -------------------------------------------------------------------------
+    // getDirectoryByTag
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getDirectoryByTag_returnsEntriesForMatchingTag() {
+        Object[] row = new Object[]{"Ceramica del Valle", "ceramica-del-valle", "INFORMAL"};
+        when(businessProfileRepository.findByTag("ceramica", 50, 0))
+                .thenReturn(Collections.singletonList(row));
+        when(businessProfileRepository.countByTag("ceramica")).thenReturn(1L);
+
+        DirectoryPageDto result = service.getDirectoryByTag("ceramica", 0);
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).name()).isEqualTo("Ceramica del Valle");
+        assertThat(result.content().get(0).bizType()).isEqualTo("INFORMAL");
+        assertThat(result.totalElements()).isEqualTo(1L);
+    }
+
+    @Test
+    void getDirectoryByTag_returnsEmptyWhenNoBusinessHasTag() {
+        when(businessProfileRepository.findByTag("nonexistent", 50, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countByTag("nonexistent")).thenReturn(0L);
+
+        DirectoryPageDto result = service.getDirectoryByTag("nonexistent", 0);
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.totalElements()).isEqualTo(0L);
+        assertThat(result.totalPages()).isEqualTo(0);
+    }
+
+    // -------------------------------------------------------------------------
+    // getDirectoryTags
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getDirectoryTags_returnsTagsWithCounts() {
+        List<Object[]> rows = new ArrayList<>();
+        rows.add(new Object[]{"ceramica", 5L});
+        rows.add(new Object[]{"artesanias", 3L});
+        rows.add(new Object[]{"ropa", 1L});
+        when(businessProfileRepository.findAllTagsWithCount()).thenReturn(rows);
+
+        List<TagCloudItemDto> result = service.getDirectoryTags();
+
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0).tag()).isEqualTo("ceramica");
+        assertThat(result.get(0).count()).isEqualTo(5L);
+        assertThat(result.get(1).tag()).isEqualTo("artesanias");
+        assertThat(result.get(2).tag()).isEqualTo("ropa");
+    }
+
+    @Test
+    void getDirectoryTags_returnsEmptyListWhenNoTags() {
+        when(businessProfileRepository.findAllTagsWithCount()).thenReturn(Collections.emptyList());
+
+        List<TagCloudItemDto> result = service.getDirectoryTags();
+
+        assertThat(result).isEmpty();
     }
 
     // -------------------------------------------------------------------------

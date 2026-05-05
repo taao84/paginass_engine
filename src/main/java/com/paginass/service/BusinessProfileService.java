@@ -9,6 +9,7 @@ import com.paginass.dto.BusinessProfileSummaryDto;
 import com.paginass.dto.BusinessProfileUpdateRequestDto;
 import com.paginass.dto.DirectoryEntryDto;
 import com.paginass.dto.DirectoryPageDto;
+import com.paginass.dto.TagCloudItemDto;
 import com.paginass.dto.SearchResponseDto;
 import com.paginass.entity.BusinessProfile;
 import com.paginass.entity.BusinessProfileEdit;
@@ -87,6 +88,45 @@ public class BusinessProfileService {
 
         int totalPages = (int) Math.ceil((double) total / DIRECTORY_PAGE_SIZE);
         return new DirectoryPageDto(content, page, totalPages, total);
+    }
+
+    @Transactional(readOnly = true)
+    public DirectoryPageDto getDirectoryByLetter(String letter, int page) {
+        int offset = page * DIRECTORY_PAGE_SIZE;
+        List<Object[]> rows;
+        long total;
+        if ("#".equals(letter)) {
+            rows = businessProfileRepository.findByNonAlphaStart(DIRECTORY_PAGE_SIZE, offset);
+            total = businessProfileRepository.countByNonAlphaStart();
+        } else {
+            String normalizedLetter = letter.substring(0, 1).toUpperCase();
+            rows = businessProfileRepository.findByFirstLetter(normalizedLetter, DIRECTORY_PAGE_SIZE, offset);
+            total = businessProfileRepository.countByFirstLetter(normalizedLetter);
+        }
+        List<DirectoryEntryDto> content = rows.stream()
+                .map(row -> new DirectoryEntryDto((String) row[0], (String) row[1], (String) row[2]))
+                .toList();
+        int totalPages = (int) Math.ceil((double) total / DIRECTORY_PAGE_SIZE);
+        return new DirectoryPageDto(content, page, totalPages, total);
+    }
+
+    @Transactional(readOnly = true)
+    public DirectoryPageDto getDirectoryByTag(String tag, int page) {
+        int offset = page * DIRECTORY_PAGE_SIZE;
+        List<Object[]> rows = businessProfileRepository.findByTag(tag, DIRECTORY_PAGE_SIZE, offset);
+        long total = businessProfileRepository.countByTag(tag);
+        List<DirectoryEntryDto> content = rows.stream()
+                .map(row -> new DirectoryEntryDto((String) row[0], (String) row[1], (String) row[2]))
+                .toList();
+        int totalPages = (int) Math.ceil((double) total / DIRECTORY_PAGE_SIZE);
+        return new DirectoryPageDto(content, page, totalPages, total);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TagCloudItemDto> getDirectoryTags() {
+        return businessProfileRepository.findAllTagsWithCount().stream()
+                .map(row -> new TagCloudItemDto((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

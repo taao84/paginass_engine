@@ -2,6 +2,7 @@ package com.paginass.controller;
 
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.DirectoryPageDto;
+import com.paginass.dto.TagCloudItemDto;
 import com.paginass.service.BusinessProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/public")
@@ -27,6 +30,25 @@ public class PublicController {
     public ResponseEntity<DirectoryPageDto> getDirectory(
             @RequestParam(defaultValue = "0") int page) {
         return ResponseEntity.ok(businessProfileService.getDirectory(page));
+    }
+
+    @GetMapping("/directory/by-letter")
+    public ResponseEntity<DirectoryPageDto> getDirectoryByLetter(
+            @RequestParam String letter,
+            @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(businessProfileService.getDirectoryByLetter(letter, page));
+    }
+
+    @GetMapping("/directory/by-tag")
+    public ResponseEntity<DirectoryPageDto> getDirectoryByTag(
+            @RequestParam String tag,
+            @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(businessProfileService.getDirectoryByTag(tag, page));
+    }
+
+    @GetMapping("/directory/tags")
+    public ResponseEntity<List<TagCloudItemDto>> getDirectoryTags() {
+        return ResponseEntity.ok(businessProfileService.getDirectoryTags());
     }
 
     @GetMapping("/business/{slug}")

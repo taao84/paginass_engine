@@ -70,4 +70,83 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
             WHERE  b.is_active = true
             """, nativeQuery = true)
     long countAllForDirectory();
+
+    // Column order: [0] name, [1] slug, [2] biz_type
+    @Query(value = """
+            SELECT b.name,
+                   b.slug,
+                   b.biz_type::text
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  UPPER(LEFT(b.name, 1)) = UPPER(:letter)
+            ORDER  BY b.name ASC
+            LIMIT  :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<Object[]> findByFirstLetter(@Param("letter") String letter,
+                                     @Param("limit") int limit,
+                                     @Param("offset") int offset);
+
+    @Query(value = """
+            SELECT count(*)
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  UPPER(LEFT(b.name, 1)) = UPPER(:letter)
+            """, nativeQuery = true)
+    long countByFirstLetter(@Param("letter") String letter);
+
+    // Column order: [0] name, [1] slug, [2] biz_type
+    @Query(value = """
+            SELECT b.name,
+                   b.slug,
+                   b.biz_type::text
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  b.name !~* '^[a-záéíóúñü]'
+            ORDER  BY b.name ASC
+            LIMIT  :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<Object[]> findByNonAlphaStart(@Param("limit") int limit, @Param("offset") int offset);
+
+    @Query(value = """
+            SELECT count(*)
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  b.name !~* '^[a-záéíóúñü]'
+            """, nativeQuery = true)
+    long countByNonAlphaStart();
+
+    // Column order: [0] name, [1] slug, [2] biz_type
+    @Query(value = """
+            SELECT b.name,
+                   b.slug,
+                   b.biz_type::text
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  b.tags @> jsonb_build_array(:tag)
+            ORDER  BY b.name ASC
+            LIMIT  :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<Object[]> findByTag(@Param("tag") String tag,
+                              @Param("limit") int limit,
+                              @Param("offset") int offset);
+
+    @Query(value = """
+            SELECT count(*)
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  b.tags @> jsonb_build_array(:tag)
+            """, nativeQuery = true)
+    long countByTag(@Param("tag") String tag);
+
+    // Column order: [0] tag (text), [1] count (bigint)
+    @Query(value = """
+            SELECT t.tag, count(*) AS cnt
+            FROM   business_profiles b,
+                   jsonb_array_elements_text(b.tags) AS t(tag)
+            WHERE  b.is_active = true
+              AND  jsonb_array_length(b.tags) > 0
+            GROUP  BY t.tag
+            ORDER  BY cnt DESC, t.tag ASC
+            """, nativeQuery = true)
+    List<Object[]> findAllTagsWithCount();
 }
