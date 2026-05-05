@@ -43,6 +43,7 @@ public class AdminUserService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final SessionRegistry sessionRegistry;
+    private final SessionExpiryReasonStore sessionExpiryReasonStore;
 
     @Autowired @Lazy
     private AdminUserService self;
@@ -143,7 +144,10 @@ public class AdminUserService {
         sessionRegistry.getAllPrincipals().stream()
                 .filter(p -> email.equals(extractPrincipalEmail(p)))
                 .flatMap(p -> sessionRegistry.getAllSessions(p, false).stream())
-                .forEach(SessionInformation::expireNow);
+                .forEach(info -> {
+                    sessionExpiryReasonStore.register(info.getSessionId(), "account_disabled");
+                    info.expireNow();
+                });
     }
 
     private static String extractPrincipalEmail(Object principal) {

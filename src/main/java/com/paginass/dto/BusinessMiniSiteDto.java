@@ -8,10 +8,12 @@ public record BusinessMiniSiteDto(
         UUID id,
         String name,
         String description,
+        String bizType,
         Map<String, String> contactInfo,
         List<String> imageUrls,
         List<String> tags,
         boolean miniSiteEnabled,
         boolean isClaimed,
-        boolean hasPendingClaim
+        boolean hasPendingClaim,
+        boolean deliversToHome
 ) {}

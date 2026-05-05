@@ -148,7 +148,6 @@ class BusinessProfileServiceTest {
         when(businessProfileEditRepository.findById(editId)).thenReturn(Optional.of(edit));
         when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(storageService.toPublicUrl(any())).thenAnswer(i -> i.getArgument(0));
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         service.restoreFromEdit(businessId, editId);
@@ -182,7 +181,6 @@ class BusinessProfileServiceTest {
         when(businessProfileEditRepository.findById(editId)).thenReturn(Optional.of(edit));
         when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(storageService.toPublicUrl(any())).thenAnswer(i -> i.getArgument(0));
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         service.restoreFromEdit(businessId, editId);
@@ -217,6 +215,79 @@ class BusinessProfileServiceTest {
 
         assertThatThrownBy(() -> service.restoreFromEdit(businessId, editId))
                 .isInstanceOf(ResponseStatusException.class);
+    }
+
+    // -------------------------------------------------------------------------
+    // updateProfile — bizType
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateProfile_updatesBizTypeWhenProvided() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+        profile.setBizType(BusinessType.INFORMAL);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, "BRICK_AND_MORTAR");
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getBizType()).isEqualTo(BusinessType.BRICK_AND_MORTAR);
+    }
+
+    @Test
+    void updateProfile_throwsBadRequestForUnknownBizType() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, "INVALID_TYPE");
+
+        assertThatThrownBy(() -> service.updateProfile(profileId, request))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Invalid bizType");
+    }
+
+    @Test
+    void updateProfile_leavesBizTypeUnchangedWhenNull() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+        profile.setBizType(BusinessType.GIG);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, null);
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getBizType()).isEqualTo(BusinessType.GIG);
     }
 
     // -------------------------------------------------------------------------

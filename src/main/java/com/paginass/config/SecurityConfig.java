@@ -2,6 +2,7 @@ package com.paginass.config;
 
 import com.paginass.security.CustomOAuth2UserService;
 import com.paginass.security.CustomUserDetailsService;
+import com.paginass.service.SessionExpiryReasonStore;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +37,7 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final CustomUserDetailsService customUserDetailsService;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final SessionExpiryReasonStore sessionExpiryReasonStore;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -126,6 +128,7 @@ public class SecurityConfig {
                 .requestMatchers(PUBLIC_PATHS).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/profile/businesses").hasAnyRole("OWNER", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/profile/setup").hasAnyRole("EDITOR", "ADMIN")
                 .anyRequest().authenticated()
             )
 
@@ -138,9 +141,13 @@ public class SecurityConfig {
                     .maximumSessions(1)
                     .sessionRegistry(sessionRegistry())
                     .expiredSessionStrategy(event -> {
+                        String sessionId = event.getSessionInformation().getSessionId();
+                        String reason = sessionExpiryReasonStore.consumeReason(sessionId);
+                        if (reason == null) reason = "concurrent_login";
                         event.getResponse().setContentType("application/json");
                         event.getResponse().setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        event.getResponse().getWriter().write("{\"error\":\"session_expired\"}");
+                        event.getResponse().getWriter()
+                            .write("{\"error\":\"session_expired\",\"reason\":\"" + reason + "\"}");
                     });
             })
 

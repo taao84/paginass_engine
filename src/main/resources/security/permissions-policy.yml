@@ -27,8 +27,18 @@ resources:
         owner: denied
         admin: allowed
       - operation: Create new business
-        contributor: allowed
+        contributor: denied
         editor: allowed
+        owner: denied
+        admin: allowed
+      - operation: Change business type on unclaimed business
+        contributor: denied
+        editor: allowed
+        owner: denied
+        admin: allowed
+      - operation: Change business type on own claimed business
+        contributor: denied
+        editor: denied
         owner: allowed
         admin: allowed
       - operation: View business edit history

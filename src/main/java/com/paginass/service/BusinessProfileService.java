@@ -12,6 +12,7 @@ import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.SearchResponseDto;
 import com.paginass.entity.BusinessProfile;
 import com.paginass.entity.BusinessProfileEdit;
+import com.paginass.entity.BusinessType;
 import com.paginass.entity.ClaimStatus;
 import com.paginass.entity.User;
 import com.paginass.repository.BusinessClaimRepository;
@@ -131,6 +132,14 @@ public class BusinessProfileService {
 
         profile.setTags(parseCsv(request.services()));
         profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
+
+        if (request.bizType() != null) {
+            try {
+                profile.setBizType(BusinessType.valueOf(request.bizType()));
+            } catch (IllegalArgumentException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid bizType: " + request.bizType());
+            }
+        }
 
         BusinessProfile saved = businessProfileRepository.save(profile);
         recordEditSnapshot(saved, user);
@@ -338,12 +347,14 @@ public class BusinessProfileService {
                 profile.getId(),
                 profile.getName(),
                 profile.getDescription(),
+                profile.getBizType() != null ? profile.getBizType().name() : null,
                 profile.getContactInfo(),
                 toPublicUrls(profile.getImageUrls()),
                 profile.getTags() != null ? profile.getTags() : List.of(),
                 profile.isMiniSiteEnabled(),
                 profile.isClaimed(),
-                hasPendingClaim
+                hasPendingClaim,
+                profile.isDeliversToHome()
         );
     }
 
