@@ -29,18 +29,24 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
                    b.description,
                    b.tags::text,
                    b.contact_info::text,
-                   ts_rank(b.search_vector, websearch_to_tsquery('spanish', :query)) AS score,
+                   GREATEST(
+                       ts_rank(b.search_vector, websearch_to_tsquery('spanish', :rawQuery)),
+                       ts_rank(b.search_vector, to_tsquery('spanish', :prefixQuery))
+                   ) AS score,
                    b.mini_site_enabled,
                    b.is_claimed,
                    b.delivers_to_home
             FROM   business_profiles b
             WHERE  b.is_active = true
-              AND  b.search_vector @@ websearch_to_tsquery('spanish', :query)
+              AND  b.search_vector @@ (
+                       websearch_to_tsquery('spanish', :rawQuery) || to_tsquery('spanish', :prefixQuery)
+                   )
             ORDER  BY score DESC
             LIMIT  :limit OFFSET :offset
             """, nativeQuery = true)
     List<Object[]> searchBusinessProfiles(
-            @Param("query") String query,
+            @Param("rawQuery") String rawQuery,
+            @Param("prefixQuery") String prefixQuery,
             @Param("limit") int limit,
             @Param("offset") int offset);
 
@@ -48,9 +54,11 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
             SELECT count(*)
             FROM   business_profiles b
             WHERE  b.is_active = true
-              AND  b.search_vector @@ websearch_to_tsquery('spanish', :query)
+              AND  b.search_vector @@ (
+                       websearch_to_tsquery('spanish', :rawQuery) || to_tsquery('spanish', :prefixQuery)
+                   )
             """, nativeQuery = true)
-    long countSearchResults(@Param("query") String query);
+    long countSearchResults(@Param("rawQuery") String rawQuery, @Param("prefixQuery") String prefixQuery);
 
     // Column order: [0] name, [1] slug, [2] biz_type
     @Query(value = """

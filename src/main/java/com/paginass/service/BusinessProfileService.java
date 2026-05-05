@@ -62,10 +62,14 @@ public class BusinessProfileService {
 
     @Transactional(readOnly = true)
     public SearchResponseDto search(String query, int page) {
+        String prefixQuery = buildPrefixQuery(query);
+        if (prefixQuery.isBlank()) {
+            return new SearchResponseDto(Collections.emptyList(), page, 0, 0);
+        }
         int offset = page * PAGE_SIZE;
 
-        List<Object[]> rows = businessProfileRepository.searchBusinessProfiles(query, PAGE_SIZE, offset);
-        long total = businessProfileRepository.countSearchResults(query);
+        List<Object[]> rows = businessProfileRepository.searchBusinessProfiles(query, prefixQuery, PAGE_SIZE, offset);
+        long total = businessProfileRepository.countSearchResults(query, prefixQuery);
 
         List<BusinessProfileSummaryDto> results = rows.stream()
                 .map(this::mapRow)
@@ -439,6 +443,14 @@ public class BusinessProfileService {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
+    }
+
+    private String buildPrefixQuery(String input) {
+        return Arrays.stream(input.split("\\s+"))
+                .map(token -> token.replaceAll("[!&|():*'\\\\<>]", ""))
+                .filter(token -> !token.isEmpty())
+                .map(token -> token + ":*")
+                .collect(Collectors.joining(" & "));
     }
 
     // Column positions must match the SELECT order in BusinessProfileRepository.searchBusinessProfiles:

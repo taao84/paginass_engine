@@ -296,6 +296,64 @@ class BusinessProfileServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // search — prefix query transformation
+    // -------------------------------------------------------------------------
+
+    @Test
+    void search_transformsSingleWordToPrefixQuery() {
+        when(businessProfileRepository.searchBusinessProfiles("restaura", "restaura:*", 10, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countSearchResults("restaura", "restaura:*")).thenReturn(0L);
+
+        service.search("restaura", 0);
+
+        verify(businessProfileRepository).searchBusinessProfiles("restaura", "restaura:*", 10, 0);
+        verify(businessProfileRepository).countSearchResults("restaura", "restaura:*");
+    }
+
+    @Test
+    void search_transformsMultiWordToPrefixQuery() {
+        when(businessProfileRepository.searchBusinessProfiles("pollo asado", "pollo:* & asado:*", 10, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countSearchResults("pollo asado", "pollo:* & asado:*")).thenReturn(0L);
+
+        service.search("pollo asado", 0);
+
+        verify(businessProfileRepository).searchBusinessProfiles("pollo asado", "pollo:* & asado:*", 10, 0);
+    }
+
+    @Test
+    void search_stripsSpecialCharactersFromQuery() {
+        when(businessProfileRepository.searchBusinessProfiles("restaurante!", "restaurante:*", 10, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countSearchResults("restaurante!", "restaurante:*")).thenReturn(0L);
+
+        service.search("restaurante!", 0);
+
+        verify(businessProfileRepository).searchBusinessProfiles("restaurante!", "restaurante:*", 10, 0);
+    }
+
+    @Test
+    void search_stripsTsqueryPhraseOperator() {
+        when(businessProfileRepository.searchBusinessProfiles("pollo <-> asado", "pollo:* & asado:*", 10, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countSearchResults("pollo <-> asado", "pollo:* & asado:*")).thenReturn(0L);
+
+        service.search("pollo <-> asado", 0);
+
+        verify(businessProfileRepository).searchBusinessProfiles("pollo <-> asado", "pollo:* & asado:*", 10, 0);
+    }
+
+    @Test
+    void search_returnsEmptyResultsWhenQueryReducesToBlank() {
+        var result = service.search("!&|()", 0);
+
+        assertThat(result.results()).isEmpty();
+        assertThat(result.totalResults()).isEqualTo(0);
+        verify(businessProfileRepository, never()).searchBusinessProfiles(any(), any(), anyInt(), anyInt());
+    }
+
+    // -------------------------------------------------------------------------
     // getDirectoryByLetter
     // -------------------------------------------------------------------------
 
