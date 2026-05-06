@@ -146,6 +146,22 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
             """, nativeQuery = true)
     long countByTag(@Param("tag") String tag);
 
+    // Column order: [0] id, [1] name, [2] slug, [3] biz_type, [4] latitude, [5] longitude
+    @Query(value = """
+            SELECT b.id::text,
+                   b.name,
+                   b.slug,
+                   b.biz_type::text,
+                   b.latitude,
+                   b.longitude
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  b.latitude  IS NOT NULL
+              AND  b.longitude IS NOT NULL
+            ORDER  BY b.name ASC
+            """, nativeQuery = true)
+    List<Object[]> findAllWithLocation();
+
     // Column order: [0] tag (text), [1] count (bigint)
     @Query(value = """
             SELECT t.tag, count(*) AS cnt

@@ -71,6 +71,12 @@ public class BusinessProfile {
     @Column(name = "delivers_to_home", nullable = false)
     private boolean deliversToHome = false;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false,
             columnDefinition = "TIMESTAMP WITH TIME ZONE")

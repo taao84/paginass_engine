@@ -17,5 +17,7 @@ public record BusinessProfileDetailDto(
         boolean isActive,
         boolean isClaimed,
         UUID createdBy,
-        boolean deliversToHome
+        boolean deliversToHome,
+        Double latitude,
+        Double longitude
 ) {}

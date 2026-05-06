@@ -61,6 +61,8 @@ public class ProfileSetupController {
 
         profile.setTags(normalizeTags(request.services()));
         profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
+        profile.setLatitude(request.latitude());
+        profile.setLongitude(request.longitude());
 
         BusinessProfile saved = businessProfileRepository.save(profile);
         return ResponseEntity.status(HttpStatus.CREATED)

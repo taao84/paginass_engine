@@ -8,6 +8,7 @@ import com.paginass.entity.BusinessProfileEdit;
 import com.paginass.entity.BusinessType;
 import com.paginass.entity.User;
 import com.paginass.entity.UserRole;
+import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.repository.BusinessClaimRepository;
 import com.paginass.repository.BusinessProfileEditRepository;
 import com.paginass.repository.BusinessProfileRepository;
@@ -243,7 +244,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, "BRICK_AND_MORTAR");
+                "Name", null, null, null, null, null, false, "BRICK_AND_MORTAR", null, null);
 
         service.updateProfile(profileId, request);
 
@@ -264,7 +265,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, "INVALID_TYPE");
+                "Name", null, null, null, null, null, false, "INVALID_TYPE", null, null);
 
         assertThatThrownBy(() -> service.updateProfile(profileId, request))
                 .isInstanceOf(ResponseStatusException.class)
@@ -288,7 +289,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null);
+                "Name", null, null, null, null, null, false, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -484,7 +485,7 @@ class BusinessProfileServiceTest {
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
                 "Name", null, null, null, null,
                 List.of("Plomería", "Instalación Eléctrica", "PINTURA"),
-                false, null);
+                false, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -510,7 +511,7 @@ class BusinessProfileServiceTest {
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
                 "Name", null, null, null, null,
                 List.of("ceramica", "Cerámica", "CERAMICA"),
-                false, null);
+                false, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -533,14 +534,99 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var requestNull = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null);
+                "Name", null, null, null, null, null, false, null, null, null);
         service.updateProfile(profileId, requestNull);
         assertThat(profile.getTags()).isEmpty();
 
         var requestEmpty = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, List.of(), false, null);
+                "Name", null, null, null, null, List.of(), false, null, null, null);
         service.updateProfile(profileId, requestEmpty);
         assertThat(profile.getTags()).isEmpty();
+    }
+
+    // -------------------------------------------------------------------------
+    // updateProfile — location coordinates
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateProfile_setsCoordinatesWhenProvided() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, null, 6.5006, -75.7422);
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getLatitude()).isEqualTo(6.5006);
+        assertThat(profile.getLongitude()).isEqualTo(-75.7422);
+    }
+
+    @Test
+    void updateProfile_clearsCoordinatesWhenNull() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+        profile.setLatitude(6.5006);
+        profile.setLongitude(-75.7422);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, null, null, null);
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getLatitude()).isNull();
+        assertThat(profile.getLongitude()).isNull();
+    }
+
+    // -------------------------------------------------------------------------
+    // getBusinessLocations
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getBusinessLocations_returnsMappedMarkersForBusinessesWithCoordinates() {
+        UUID id = UUID.randomUUID();
+        Object[] row = new Object[]{
+                id.toString(), "Ferretería El Martillo", "ferreteria-el-martillo",
+                "BRICK_AND_MORTAR", 6.5006, -75.7422
+        };
+        when(businessProfileRepository.findAllWithLocation()).thenReturn(List.of(row));
+
+        List<BusinessMapMarkerDto> result = service.getBusinessLocations();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).name()).isEqualTo("Ferretería El Martillo");
+        assertThat(result.get(0).latitude()).isEqualTo(6.5006);
+        assertThat(result.get(0).longitude()).isEqualTo(-75.7422);
+        assertThat(result.get(0).bizType()).isEqualTo("BRICK_AND_MORTAR");
+    }
+
+    @Test
+    void getBusinessLocations_returnsEmptyListWhenNoLocations() {
+        when(businessProfileRepository.findAllWithLocation()).thenReturn(List.of());
+
+        List<BusinessMapMarkerDto> result = service.getBusinessLocations();
+
+        assertThat(result).isEmpty();
     }
 
     // -------------------------------------------------------------------------

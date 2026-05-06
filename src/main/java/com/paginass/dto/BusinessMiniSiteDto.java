@@ -15,5 +15,7 @@ public record BusinessMiniSiteDto(
         boolean miniSiteEnabled,
         boolean isClaimed,
         boolean hasPendingClaim,
-        boolean deliversToHome
+        boolean deliversToHome,
+        Double latitude,
+        Double longitude
 ) {}

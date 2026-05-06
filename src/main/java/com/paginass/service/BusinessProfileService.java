@@ -2,6 +2,7 @@ package com.paginass.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.BusinessProfileDetailDto;
 import com.paginass.dto.BusinessProfileEditDto;
@@ -128,6 +129,20 @@ public class BusinessProfileService {
     }
 
     @Transactional(readOnly = true)
+    public List<BusinessMapMarkerDto> getBusinessLocations() {
+        return businessProfileRepository.findAllWithLocation().stream()
+                .map(row -> new BusinessMapMarkerDto(
+                        UUID.fromString((String) row[0]),
+                        (String) row[1],
+                        (String) row[2],
+                        ((Number) row[4]).doubleValue(),
+                        ((Number) row[5]).doubleValue(),
+                        (String) row[3]
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<TagCloudItemDto> getDirectoryTags() {
         return businessProfileRepository.findAllTagsWithCount().stream()
                 .map(row -> new TagCloudItemDto((String) row[0], ((Number) row[1]).longValue()))
@@ -177,6 +192,8 @@ public class BusinessProfileService {
 
         profile.setTags(normalizeTags(request.services()));
         profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
+        profile.setLatitude(request.latitude());
+        profile.setLongitude(request.longitude());
 
         if (request.bizType() != null) {
             try {
@@ -399,7 +416,9 @@ public class BusinessProfileService {
                 profile.isMiniSiteEnabled(),
                 profile.isClaimed(),
                 hasPendingClaim,
-                profile.isDeliversToHome()
+                profile.isDeliversToHome(),
+                profile.getLatitude(),
+                profile.getLongitude()
         );
     }
 
@@ -422,7 +441,9 @@ public class BusinessProfileService {
                 p.isActive(),
                 p.isClaimed(),
                 p.getCreatedBy(),
-                p.isDeliversToHome()
+                p.isDeliversToHome(),
+                p.getLatitude(),
+                p.getLongitude()
         );
     }
 

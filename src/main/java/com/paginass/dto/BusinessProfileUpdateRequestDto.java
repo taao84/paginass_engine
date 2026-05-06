@@ -12,5 +12,7 @@ public record BusinessProfileUpdateRequestDto(
         String address,
         List<String> services,
         Boolean deliversToHome,
-        String bizType
+        String bizType,
+        Double latitude,
+        Double longitude
 ) {}

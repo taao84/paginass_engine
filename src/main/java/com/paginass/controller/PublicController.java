@@ -1,5 +1,6 @@
 package com.paginass.controller;
 
+import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.TagCloudItemDto;
@@ -55,4 +56,10 @@ public class PublicController {
     public ResponseEntity<BusinessMiniSiteDto> getPublicBusiness(@PathVariable String slug) {
         return ResponseEntity.ok(businessProfileService.getPublicBusinessBySlug(slug));
     }
+
+    @GetMapping("/businesses/locations")
+    public ResponseEntity<List<BusinessMapMarkerDto>> getBusinessLocations() {
+        return ResponseEntity.ok(businessProfileService.getBusinessLocations());
+    }
+
 }
