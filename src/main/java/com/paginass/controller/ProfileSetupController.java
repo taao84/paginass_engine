@@ -57,6 +57,7 @@ public class ProfileSetupController {
         if (request.phones() != null) contactInfo.put("phones", request.phones());
         if (request.contactHours() != null) contactInfo.put("hours", request.contactHours());
         if (request.address() != null) contactInfo.put("address", request.address());
+        if (request.whatsapp() != null && !request.whatsapp().isBlank()) contactInfo.put("whatsapp", request.whatsapp());
         profile.setContactInfo(contactInfo);
 
         profile.setTags(normalizeTags(request.services()));

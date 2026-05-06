@@ -244,7 +244,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, "BRICK_AND_MORTAR", null, null);
+                "Name", null, null, null, null, null, false, "BRICK_AND_MORTAR", null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -265,7 +265,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, "INVALID_TYPE", null, null);
+                "Name", null, null, null, null, null, false, "INVALID_TYPE", null, null, null);
 
         assertThatThrownBy(() -> service.updateProfile(profileId, request))
                 .isInstanceOf(ResponseStatusException.class)
@@ -289,7 +289,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null);
+                "Name", null, null, null, null, null, false, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -485,7 +485,7 @@ class BusinessProfileServiceTest {
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
                 "Name", null, null, null, null,
                 List.of("Plomería", "Instalación Eléctrica", "PINTURA"),
-                false, null, null, null);
+                false, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -511,7 +511,7 @@ class BusinessProfileServiceTest {
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
                 "Name", null, null, null, null,
                 List.of("ceramica", "Cerámica", "CERAMICA"),
-                false, null, null, null);
+                false, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -534,12 +534,12 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var requestNull = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null);
+                "Name", null, null, null, null, null, false, null, null, null, null);
         service.updateProfile(profileId, requestNull);
         assertThat(profile.getTags()).isEmpty();
 
         var requestEmpty = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, List.of(), false, null, null, null);
+                "Name", null, null, null, null, List.of(), false, null, null, null, null);
         service.updateProfile(profileId, requestEmpty);
         assertThat(profile.getTags()).isEmpty();
     }
@@ -564,7 +564,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, 6.5006, -75.7422);
+                "Name", null, null, null, null, null, false, null, 6.5006, -75.7422, null);
 
         service.updateProfile(profileId, request);
 
@@ -590,7 +590,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null);
+                "Name", null, null, null, null, null, false, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -627,6 +627,79 @@ class BusinessProfileServiceTest {
         List<BusinessMapMarkerDto> result = service.getBusinessLocations();
 
         assertThat(result).isEmpty();
+    }
+
+    // -------------------------------------------------------------------------
+    // updateProfile — whatsapp contact field
+    // -------------------------------------------------------------------------
+
+    @Test
+    void updateProfile_savesWhatsappInContactInfo() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, null, null, null, "3001234567");
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getContactInfo()).containsEntry("whatsapp", "3001234567");
+    }
+
+    @Test
+    void updateProfile_doesNotStoreWhatsappWhenNull() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, null, null, null, null);
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getContactInfo()).doesNotContainKey("whatsapp");
+    }
+
+    @Test
+    void updateProfile_doesNotStoreWhatsappWhenBlank() {
+        UUID profileId = UUID.randomUUID();
+
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(profileId);
+
+        User admin = userWithRole(UserRole.ADMIN);
+        admin.setEmail("admin@example.com");
+
+        when(businessProfileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(businessProfileEditRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+
+        var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
+                "Name", null, null, null, null, null, false, null, null, null, "   ");
+
+        service.updateProfile(profileId, request);
+
+        assertThat(profile.getContactInfo()).doesNotContainKey("whatsapp");
     }
 
     // -------------------------------------------------------------------------
