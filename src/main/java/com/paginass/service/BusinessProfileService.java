@@ -18,8 +18,12 @@ import com.paginass.entity.BusinessType;
 import com.paginass.entity.ClaimStatus;
 import com.paginass.entity.User;
 import com.paginass.repository.BusinessClaimRepository;
+import com.paginass.repository.BusinessLocationProjection;
 import com.paginass.repository.BusinessProfileEditRepository;
 import com.paginass.repository.BusinessProfileRepository;
+import com.paginass.repository.BusinessProfileSearchProjection;
+import com.paginass.repository.DirectoryEntryProjection;
+import com.paginass.repository.TagCountProjection;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -70,7 +74,7 @@ public class BusinessProfileService {
         }
         int offset = page * PAGE_SIZE;
 
-        List<Object[]> rows = businessProfileRepository.searchBusinessProfiles(query, prefixQuery, PAGE_SIZE, offset);
+        List<BusinessProfileSearchProjection> rows = businessProfileRepository.searchBusinessProfiles(query, prefixQuery, PAGE_SIZE, offset);
         long total = businessProfileRepository.countSearchResults(query, prefixQuery);
 
         List<BusinessProfileSummaryDto> results = rows.stream()
@@ -85,11 +89,11 @@ public class BusinessProfileService {
     public DirectoryPageDto getDirectory(int page) {
         int offset = page * DIRECTORY_PAGE_SIZE;
 
-        List<Object[]> rows = businessProfileRepository.findAllForDirectory(DIRECTORY_PAGE_SIZE, offset);
+        List<DirectoryEntryProjection> rows = businessProfileRepository.findAllForDirectory(DIRECTORY_PAGE_SIZE, offset);
         long total = businessProfileRepository.countAllForDirectory();
 
         List<DirectoryEntryDto> content = rows.stream()
-                .map(row -> new DirectoryEntryDto((String) row[0], (String) row[1], (String) row[2]))
+                .map(p -> new DirectoryEntryDto(p.getName(), p.getSlug(), p.getBizType()))
                 .toList();
 
         int totalPages = (int) Math.ceil((double) total / DIRECTORY_PAGE_SIZE);
@@ -99,7 +103,7 @@ public class BusinessProfileService {
     @Transactional(readOnly = true)
     public DirectoryPageDto getDirectoryByLetter(String letter, int page) {
         int offset = page * DIRECTORY_PAGE_SIZE;
-        List<Object[]> rows;
+        List<DirectoryEntryProjection> rows;
         long total;
         if ("#".equals(letter)) {
             rows = businessProfileRepository.findByNonAlphaStart(DIRECTORY_PAGE_SIZE, offset);
@@ -110,7 +114,7 @@ public class BusinessProfileService {
             total = businessProfileRepository.countByFirstLetter(normalizedLetter);
         }
         List<DirectoryEntryDto> content = rows.stream()
-                .map(row -> new DirectoryEntryDto((String) row[0], (String) row[1], (String) row[2]))
+                .map(p -> new DirectoryEntryDto(p.getName(), p.getSlug(), p.getBizType()))
                 .toList();
         int totalPages = (int) Math.ceil((double) total / DIRECTORY_PAGE_SIZE);
         return new DirectoryPageDto(content, page, totalPages, total);
@@ -119,10 +123,10 @@ public class BusinessProfileService {
     @Transactional(readOnly = true)
     public DirectoryPageDto getDirectoryByTag(String tag, int page) {
         int offset = page * DIRECTORY_PAGE_SIZE;
-        List<Object[]> rows = businessProfileRepository.findByTag(tag, DIRECTORY_PAGE_SIZE, offset);
+        List<DirectoryEntryProjection> rows = businessProfileRepository.findByTag(tag, DIRECTORY_PAGE_SIZE, offset);
         long total = businessProfileRepository.countByTag(tag);
         List<DirectoryEntryDto> content = rows.stream()
-                .map(row -> new DirectoryEntryDto((String) row[0], (String) row[1], (String) row[2]))
+                .map(p -> new DirectoryEntryDto(p.getName(), p.getSlug(), p.getBizType()))
                 .toList();
         int totalPages = (int) Math.ceil((double) total / DIRECTORY_PAGE_SIZE);
         return new DirectoryPageDto(content, page, totalPages, total);
@@ -130,14 +134,15 @@ public class BusinessProfileService {
 
     @Transactional(readOnly = true)
     public List<BusinessMapMarkerDto> getBusinessLocations() {
+
         return businessProfileRepository.findAllWithLocation().stream()
-                .map(row -> new BusinessMapMarkerDto(
-                        UUID.fromString((String) row[0]),
-                        (String) row[1],
-                        (String) row[2],
-                        ((Number) row[4]).doubleValue(),
-                        ((Number) row[5]).doubleValue(),
-                        (String) row[3]
+                .map(p -> new BusinessMapMarkerDto(
+                        UUID.fromString(p.getId()),
+                        p.getName(),
+                        p.getSlug(),
+                        p.getLatitude(),
+                        p.getLongitude(),
+                        p.getBizType()
                 ))
                 .toList();
     }
@@ -145,7 +150,7 @@ public class BusinessProfileService {
     @Transactional(readOnly = true)
     public List<TagCloudItemDto> getDirectoryTags() {
         return businessProfileRepository.findAllTagsWithCount().stream()
-                .map(row -> new TagCloudItemDto((String) row[0], ((Number) row[1]).longValue()))
+                .map(p -> new TagCloudItemDto(p.getTag(), p.getCnt()))
                 .toList();
     }
 
@@ -480,33 +485,28 @@ public class BusinessProfileService {
                 .collect(Collectors.joining(" & "));
     }
 
-    // Column positions must match the SELECT order in BusinessProfileRepository.searchBusinessProfiles:
-    // [0] id, [1] name, [2] slug, [3] biz_type, [4] description, [5] tags, [6] contact_info, [7] score, [8] mini_site_enabled, [9] is_claimed, [10] delivers_to_home
-    private BusinessProfileSummaryDto mapRow(Object[] row) {
+    private BusinessProfileSummaryDto mapRow(BusinessProfileSearchProjection p) {
         try {
-            UUID id = UUID.fromString((String) row[0]);
-            String name        = (String) row[1];
-            String slug        = (String) row[2];
-            String bizType     = (String) row[3];
-            String description = (String) row[4];
-
-            List<String> tags = row[5] != null
-                    ? objectMapper.readValue((String) row[5], new TypeReference<>() {})
+            List<String> tags = p.getTags() != null
+                    ? objectMapper.readValue(p.getTags(), new TypeReference<>() {})
                     : Collections.emptyList();
 
-            Map<String, String> contactInfo = row[6] != null
-                    ? objectMapper.readValue((String) row[6], new TypeReference<>() {})
+            Map<String, String> contactInfo = p.getContactInfo() != null
+                    ? objectMapper.readValue(p.getContactInfo(), new TypeReference<>() {})
                     : Collections.emptyMap();
 
-            double score = row[7] != null ? ((Number) row[7]).doubleValue() : 0.0;
-
-            boolean miniSiteEnabled = row[8] != null && (Boolean) row[8];
-
-            boolean isClaimed = row[9] != null && (Boolean) row[9];
-
-            boolean deliversToHome = row[10] != null && (Boolean) row[10];
-
-            return new BusinessProfileSummaryDto(id, name, slug, bizType, description, tags, contactInfo, score, miniSiteEnabled, isClaimed, deliversToHome);
+            return new BusinessProfileSummaryDto(
+                    UUID.fromString(p.getId()),
+                    p.getName(),
+                    p.getSlug(),
+                    p.getBizType(),
+                    p.getDescription(),
+                    tags,
+                    contactInfo,
+                    p.getScore() != null ? p.getScore() : 0.0,
+                    Boolean.TRUE.equals(p.getMiniSiteEnabled()),
+                    Boolean.TRUE.equals(p.getIsClaimed()),
+                    Boolean.TRUE.equals(p.getDeliversToHome()));
         } catch (Exception e) {
             throw new RuntimeException("Failed to map search result row", e);
         }

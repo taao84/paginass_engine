@@ -10,8 +10,11 @@ import com.paginass.entity.User;
 import com.paginass.entity.UserRole;
 import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.repository.BusinessClaimRepository;
+import com.paginass.repository.BusinessLocationProjection;
 import com.paginass.repository.BusinessProfileEditRepository;
 import com.paginass.repository.BusinessProfileRepository;
+import com.paginass.repository.DirectoryEntryProjection;
+import com.paginass.repository.TagCountProjection;
 import com.paginass.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +31,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -336,13 +338,13 @@ class BusinessProfileServiceTest {
 
     @Test
     void search_stripsTsqueryPhraseOperator() {
-        when(businessProfileRepository.searchBusinessProfiles("pollo <-> asado", "pollo:* & asado:*", 10, 0))
+        when(businessProfileRepository.searchBusinessProfiles("pollo <-> asado", "pollo:* & -:* & asado:*", 10, 0))
                 .thenReturn(Collections.emptyList());
-        when(businessProfileRepository.countSearchResults("pollo <-> asado", "pollo:* & asado:*")).thenReturn(0L);
+        when(businessProfileRepository.countSearchResults("pollo <-> asado", "pollo:* & -:* & asado:*")).thenReturn(0L);
 
         service.search("pollo <-> asado", 0);
 
-        verify(businessProfileRepository).searchBusinessProfiles("pollo <-> asado", "pollo:* & asado:*", 10, 0);
+        verify(businessProfileRepository).searchBusinessProfiles("pollo <-> asado", "pollo:* & -:* & asado:*", 10, 0);
     }
 
     @Test
@@ -360,9 +362,12 @@ class BusinessProfileServiceTest {
 
     @Test
     void getDirectoryByLetter_returnsEntriesForMatchingLetter() {
-        Object[] row = new Object[]{"Artesanias Lopez", "artesanias-lopez", "BRICK_AND_MORTAR"};
+        DirectoryEntryProjection proj = mock(DirectoryEntryProjection.class);
+        when(proj.getName()).thenReturn("Artesanias Lopez");
+        when(proj.getSlug()).thenReturn("artesanias-lopez");
+        when(proj.getBizType()).thenReturn("BRICK_AND_MORTAR");
         when(businessProfileRepository.findByFirstLetter("A", 50, 0))
-                .thenReturn(Collections.singletonList(row));
+                .thenReturn(Collections.singletonList(proj));
         when(businessProfileRepository.countByFirstLetter("A")).thenReturn(1L);
 
         DirectoryPageDto result = service.getDirectoryByLetter("A", 0);
@@ -388,9 +393,12 @@ class BusinessProfileServiceTest {
 
     @Test
     void getDirectoryByLetter_hashBucketUsesNonAlphaQuery() {
-        Object[] row = new Object[]{"3D Impresiones", "3d-impresiones", "GIG"};
+        DirectoryEntryProjection proj = mock(DirectoryEntryProjection.class);
+        when(proj.getName()).thenReturn("3D Impresiones");
+        when(proj.getSlug()).thenReturn("3d-impresiones");
+        when(proj.getBizType()).thenReturn("GIG");
         when(businessProfileRepository.findByNonAlphaStart(50, 0))
-                .thenReturn(Collections.singletonList(row));
+                .thenReturn(Collections.singletonList(proj));
         when(businessProfileRepository.countByNonAlphaStart()).thenReturn(1L);
 
         DirectoryPageDto result = service.getDirectoryByLetter("#", 0);
@@ -407,9 +415,12 @@ class BusinessProfileServiceTest {
 
     @Test
     void getDirectoryByTag_returnsEntriesForMatchingTag() {
-        Object[] row = new Object[]{"Ceramica del Valle", "ceramica-del-valle", "INFORMAL"};
+        DirectoryEntryProjection proj = mock(DirectoryEntryProjection.class);
+        when(proj.getName()).thenReturn("Ceramica del Valle");
+        when(proj.getSlug()).thenReturn("ceramica-del-valle");
+        when(proj.getBizType()).thenReturn("INFORMAL");
         when(businessProfileRepository.findByTag("ceramica", 50, 0))
-                .thenReturn(Collections.singletonList(row));
+                .thenReturn(Collections.singletonList(proj));
         when(businessProfileRepository.countByTag("ceramica")).thenReturn(1L);
 
         DirectoryPageDto result = service.getDirectoryByTag("ceramica", 0);
@@ -439,11 +450,16 @@ class BusinessProfileServiceTest {
 
     @Test
     void getDirectoryTags_returnsTagsWithCounts() {
-        List<Object[]> rows = new ArrayList<>();
-        rows.add(new Object[]{"ceramica", 5L});
-        rows.add(new Object[]{"artesanias", 3L});
-        rows.add(new Object[]{"ropa", 1L});
-        when(businessProfileRepository.findAllTagsWithCount()).thenReturn(rows);
+        TagCountProjection p1 = mock(TagCountProjection.class);
+        when(p1.getTag()).thenReturn("ceramica");
+        when(p1.getCnt()).thenReturn(5L);
+        TagCountProjection p2 = mock(TagCountProjection.class);
+        when(p2.getTag()).thenReturn("artesanias");
+        when(p2.getCnt()).thenReturn(3L);
+        TagCountProjection p3 = mock(TagCountProjection.class);
+        when(p3.getTag()).thenReturn("ropa");
+        when(p3.getCnt()).thenReturn(1L);
+        when(businessProfileRepository.findAllTagsWithCount()).thenReturn(List.of(p1, p2, p3));
 
         List<TagCloudItemDto> result = service.getDirectoryTags();
 
@@ -605,11 +621,14 @@ class BusinessProfileServiceTest {
     @Test
     void getBusinessLocations_returnsMappedMarkersForBusinessesWithCoordinates() {
         UUID id = UUID.randomUUID();
-        Object[] row = new Object[]{
-                id.toString(), "Ferretería El Martillo", "ferreteria-el-martillo",
-                "BRICK_AND_MORTAR", 6.5006, -75.7422
-        };
-        when(businessProfileRepository.findAllWithLocation()).thenReturn(List.of(row));
+        BusinessLocationProjection proj = mock(BusinessLocationProjection.class);
+        when(proj.getId()).thenReturn(id.toString());
+        when(proj.getName()).thenReturn("Ferretería El Martillo");
+        when(proj.getSlug()).thenReturn("ferreteria-el-martillo");
+        when(proj.getBizType()).thenReturn("BRICK_AND_MORTAR");
+        when(proj.getLatitude()).thenReturn(6.5006);
+        when(proj.getLongitude()).thenReturn(-75.7422);
+        when(businessProfileRepository.findAllWithLocation()).thenReturn(List.of(proj));
 
         List<BusinessMapMarkerDto> result = service.getBusinessLocations();
 

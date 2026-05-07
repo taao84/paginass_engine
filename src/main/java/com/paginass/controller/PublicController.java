@@ -4,8 +4,12 @@ import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.TagCloudItemDto;
+import com.paginass.config.FeatureKey;
+import com.paginass.dto.AppFeatureDto;
+import com.paginass.service.AppFeatureService;
 import com.paginass.service.BusinessProfileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +25,12 @@ import java.util.List;
 public class PublicController {
 
     private final BusinessProfileService businessProfileService;
+    private final AppFeatureService appFeatureService;
+
+    @GetMapping("/features")
+    public List<AppFeatureDto> getFeatures() {
+        return appFeatureService.getAll();
+    }
 
     @GetMapping("/mini-site/{slug}")
     public ResponseEntity<BusinessMiniSiteDto> getMiniSite(@PathVariable String slug) {
@@ -30,6 +40,9 @@ public class PublicController {
     @GetMapping("/directory")
     public ResponseEntity<DirectoryPageDto> getDirectory(
             @RequestParam(defaultValue = "0") int page) {
+        if (!appFeatureService.isEnabled(FeatureKey.CLASSIC_DIRECTORY)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(businessProfileService.getDirectory(page));
     }
 
@@ -37,6 +50,9 @@ public class PublicController {
     public ResponseEntity<DirectoryPageDto> getDirectoryByLetter(
             @RequestParam String letter,
             @RequestParam(defaultValue = "0") int page) {
+        if (!appFeatureService.isEnabled(FeatureKey.CLASSIC_DIRECTORY)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(businessProfileService.getDirectoryByLetter(letter, page));
     }
 
@@ -44,11 +60,17 @@ public class PublicController {
     public ResponseEntity<DirectoryPageDto> getDirectoryByTag(
             @RequestParam String tag,
             @RequestParam(defaultValue = "0") int page) {
+        if (!appFeatureService.isEnabled(FeatureKey.DIRECTORY_BY_CATEGORY)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(businessProfileService.getDirectoryByTag(tag, page));
     }
 
     @GetMapping("/directory/tags")
     public ResponseEntity<List<TagCloudItemDto>> getDirectoryTags() {
+        if (!appFeatureService.isEnabled(FeatureKey.DIRECTORY_BY_CATEGORY)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(businessProfileService.getDirectoryTags());
     }
 
@@ -59,6 +81,9 @@ public class PublicController {
 
     @GetMapping("/businesses/locations")
     public ResponseEntity<List<BusinessMapMarkerDto>> getBusinessLocations() {
+        if (!appFeatureService.isEnabled(FeatureKey.BUSINESS_MAP)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(businessProfileService.getBusinessLocations());
     }
 

@@ -1,15 +1,26 @@
 package com.paginass.config;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.session.web.http.DefaultCookieSerializer;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SessionConfigTest {
 
-    private final DefaultCookieSerializer serializer = new SessionConfig().cookieSerializer();
+    private DefaultCookieSerializer serializer;
+
+    @BeforeEach
+    void setUp() {
+        SessionConfig config = new SessionConfig();
+        ReflectionTestUtils.setField(config, "useSecureCookie", true);
+        ReflectionTestUtils.setField(config, "sameSite", "None");
+        serializer = config.cookieSerializer();
+        serializer.setUseBase64Encoding(false);
+    }
 
     @Test
     void cookieName_isSESSION() {

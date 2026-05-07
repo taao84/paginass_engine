@@ -115,3 +115,16 @@ resources:
         editor: denied
         owner: denied
         admin: allowed
+
+  - name: Feature Toggles
+    rules:
+      - operation: View feature toggles
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
+      - operation: Enable or disable a feature
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
