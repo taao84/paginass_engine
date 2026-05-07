@@ -129,6 +129,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/profile/businesses").hasAnyRole("OWNER", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/profile/setup").hasAnyRole("EDITOR", "ADMIN")
+                .requestMatchers("/api/ads/**").authenticated()
                 .anyRequest().authenticated()
             )
 

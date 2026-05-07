@@ -128,3 +128,21 @@ resources:
         editor: denied
         owner: denied
         admin: allowed
+
+  - name: Advertisements
+    rules:
+      - operation: Create advertisement
+        contributor: allowed
+        editor: allowed
+        owner: allowed
+        admin: allowed
+      - operation: Delete own advertisement
+        contributor: allowed
+        editor: allowed
+        owner: allowed
+        admin: allowed
+      - operation: Delete any advertisement
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
