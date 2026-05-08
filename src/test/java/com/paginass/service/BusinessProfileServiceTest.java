@@ -27,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -719,6 +720,21 @@ class BusinessProfileServiceTest {
         service.updateProfile(profileId, request);
 
         assertThat(profile.getContactInfo()).doesNotContainKey("whatsapp");
+    }
+
+    // -------------------------------------------------------------------------
+    // uploadImage — size validation
+    // -------------------------------------------------------------------------
+
+    @Test
+    void uploadImage_fileTooLarge_throws400() {
+        UUID businessId = UUID.randomUUID();
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getSize()).thenReturn(4 * 1024 * 1024L);
+
+        assertThatThrownBy(() -> service.uploadImage(businessId, file))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value()).isEqualTo(400));
     }
 
     // -------------------------------------------------------------------------
