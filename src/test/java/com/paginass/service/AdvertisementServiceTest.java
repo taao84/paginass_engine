@@ -94,6 +94,7 @@ class AdvertisementServiceTest {
         Advertisement active = buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS));
         when(advertisementRepository.findAllByExpiresAtAfterOrderByCreatedAtDesc(any()))
                 .thenReturn(List.of(active));
+        when(userRepository.findAllById(any())).thenReturn(List.of(owner));
 
         List<AdvertisementSummaryDto> result = advertisementService.getActiveAdvertisements(null, null);
 
@@ -106,6 +107,7 @@ class AdvertisementServiceTest {
         Advertisement jobAd = buildAd(AdCategory.JOB, owner, Instant.now().plus(5, ChronoUnit.DAYS));
         when(advertisementRepository.findAllByCategoryAndExpiresAtAfterOrderByCreatedAtDesc(
                 eq(AdCategory.JOB), any())).thenReturn(List.of(jobAd));
+        when(userRepository.findAllById(any())).thenReturn(List.of(owner));
 
         List<AdvertisementSummaryDto> result = advertisementService.getActiveAdvertisements(AdCategory.JOB, null);
 
@@ -194,6 +196,7 @@ class AdvertisementServiceTest {
         ad.setTitle("Test ad");
         ad.setContent("Content");
         ad.setExpiresAt(expiresAt);
+        ad.setCreatedAt(Instant.now());
         ad.setImageUrls(new ArrayList<>());
         ad.setTags(new ArrayList<>());
         return ad;
