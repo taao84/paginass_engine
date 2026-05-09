@@ -94,12 +94,6 @@ public class ClaimService {
             business.setOwnerId(claim.getClaimantId());
             business.setClaimed(true);
             businessProfileRepository.save(business);
-
-            User claimant = userRepository.findById(claim.getClaimantId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                            "Claimant user not found"));
-            claimant.setRole(UserRole.OWNER);
-            userRepository.save(claimant);
         }
 
         log.info("AUDIT claim_resolved claimId={} approved={} adminId={}", claimId, approve, admin.getId());
@@ -118,20 +112,9 @@ public class ClaimService {
                     "This business is not currently claimed");
         }
 
-        UUID previousOwnerId = business.getOwnerId();
-
         business.setOwnerId(null);
         business.setClaimed(false);
         businessProfileRepository.save(business);
-
-        boolean stillOwnsOtherBusinesses = businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(previousOwnerId);
-        if (!stillOwnsOtherBusinesses) {
-            User formerOwner = userRepository.findById(previousOwnerId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                            "Owner user not found"));
-            formerOwner.setRole(UserRole.CONTRIBUTOR);
-            userRepository.save(formerOwner);
-        }
 
         log.info("AUDIT ownership_revoked businessId={} adminId={}", businessId, admin.getId());
     }

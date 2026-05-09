@@ -40,7 +40,7 @@ class AdvertisementAuthorizationServiceTest {
 
     @BeforeEach
     void setUp() {
-        owner = buildUser("owner@test.com", UserRole.OWNER);
+        owner = buildUser("owner@test.com", UserRole.CONTRIBUTOR);
         admin = buildUser("admin@test.com", UserRole.ADMIN);
         stranger = buildUser("stranger@test.com", UserRole.CONTRIBUTOR);
 

@@ -83,14 +83,14 @@ class ClaimServiceTest {
         when(businessClaimRepository.findById(claimId)).thenReturn(Optional.of(claim));
         when(businessClaimRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(business));
-        when(userRepository.findById(claimantId)).thenReturn(Optional.of(claimant));
-        when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         claimService.resolveClaim(claimId, true);
 
         assertThat(claim.getResolvedAt()).isNotNull();
         assertThat(claim.getResolvedAt().getOffset()).isEqualTo(ZoneOffset.UTC);
+        assertThat(business.isClaimed()).isTrue();
+        assertThat(business.getOwnerId()).isEqualTo(claimantId);
     }
 
     @Test
@@ -102,14 +102,9 @@ class ClaimServiceTest {
         claim.setClaimantId(UUID.randomUUID());
         claim.setStatus(ClaimStatus.PENDING);
 
-        User claimant = new User();
-        claimant.setFullName("Test User");
-        claimant.setEmail("test@example.com");
-
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
         when(businessClaimRepository.findById(claimId)).thenReturn(Optional.of(claim));
         when(businessClaimRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(userRepository.findById(claim.getClaimantId())).thenReturn(Optional.of(claimant));
 
         claimService.resolveClaim(claimId, false);
 
@@ -118,7 +113,7 @@ class ClaimServiceTest {
     }
 
     @Test
-    void revokeOwnership_clearsOwnerAndSetsContributorRole() {
+    void revokeOwnership_clearsOwnerAndClaimedStatus() {
         UUID businessId = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
 
@@ -127,21 +122,13 @@ class ClaimServiceTest {
         business.setClaimed(true);
         business.setOwnerId(ownerId);
 
-        User formerOwner = new User();
-        formerOwner.setId(ownerId);
-        formerOwner.setRole(UserRole.OWNER);
-
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
         when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(business));
         when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(ownerId)).thenReturn(false);
-        when(userRepository.findById(ownerId)).thenReturn(Optional.of(formerOwner));
-        when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         claimService.revokeOwnership(businessId);
 
         assertThat(business.isClaimed()).isFalse();
         assertThat(business.getOwnerId()).isNull();
-        assertThat(formerOwner.getRole()).isEqualTo(UserRole.CONTRIBUTOR);
     }
 }

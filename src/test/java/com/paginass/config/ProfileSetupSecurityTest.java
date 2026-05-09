@@ -42,15 +42,6 @@ class ProfileSetupSecurityTest {
     }
 
     @Test
-    @WithMockUser(roles = "OWNER")
-    void setup_forbidsOwner() throws Exception {
-        mockMvc.perform(post("/api/profile/setup")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
     @WithMockUser(roles = "EDITOR")
     void setup_allowsEditorPastSecurityLayer() throws Exception {
         // Editor passes the auth layer — will fail downstream (400/500) but must not be 403

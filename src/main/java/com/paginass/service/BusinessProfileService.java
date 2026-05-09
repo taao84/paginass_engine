@@ -179,7 +179,7 @@ public class BusinessProfileService {
 
     @PreAuthorize("""
             hasRole('ADMIN') or
-            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#profileId)) or
+            @bizAuth.isOwnerOfClaimed(#profileId) or
             (hasRole('EDITOR') and @bizAuth.isUnclaimed(#profileId))
             """)
     @Transactional
@@ -217,7 +217,7 @@ public class BusinessProfileService {
 
     @PreAuthorize("""
             hasRole('ADMIN') or
-            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#businessId))
+            @bizAuth.isOwnerOfClaimed(#businessId)
             """)
     public BusinessProfileDetailDto toggleMiniSite(UUID businessId) {
         BusinessProfile profile = findProfileOrThrow(businessId);
@@ -244,7 +244,7 @@ public class BusinessProfileService {
 
     @PreAuthorize("""
             hasRole('ADMIN') or
-            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#businessId)) or
+            @bizAuth.isOwnerOfClaimed(#businessId) or
             (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
             """)
     public BusinessProfileDetailDto uploadImage(UUID businessId, MultipartFile file) {
@@ -276,7 +276,7 @@ public class BusinessProfileService {
 
     @PreAuthorize("""
             hasRole('ADMIN') or
-            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#businessId)) or
+            @bizAuth.isOwnerOfClaimed(#businessId) or
             (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
             """)
     public BusinessProfileDetailDto reorderImages(UUID businessId, List<String> orderedUrls) {
@@ -300,7 +300,7 @@ public class BusinessProfileService {
 
     @PreAuthorize("""
             hasRole('ADMIN') or
-            (hasRole('OWNER') and @bizAuth.isOwnerOfClaimed(#businessId)) or
+            @bizAuth.isOwnerOfClaimed(#businessId) or
             (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
             """)
     public BusinessProfileDetailDto deleteImage(UUID businessId, int imageIndex) {

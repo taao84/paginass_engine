@@ -1,55 +1,53 @@
+# Note: ownership-based access (e.g., editing your own claimed business) is enforced at the
+# service layer via @bizAuth.isOwnerOfClaimed — it applies to any authenticated user who owns
+# that specific business regardless of role. The contributor column below reflects that.
+
 resources:
   - name: Business Profiles
     rules:
       - operation: Edit unclaimed business
         contributor: denied
         editor: allowed
-        owner: denied
         admin: allowed
       - operation: Edit own claimed business
-        contributor: denied
+        contributor: allowed
         editor: denied
-        owner: allowed
         admin: allowed
       - operation: Edit other's claimed business
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Toggle mini-site on own claimed business
-        contributor: denied
+        contributor: allowed
         editor: denied
-        owner: allowed
         admin: allowed
       - operation: Toggle mini-site on unclaimed business
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
-      - operation: Create new business
+      - operation: Create new business (editor/admin only — unclaimed registry)
         contributor: denied
         editor: allowed
-        owner: denied
+        admin: allowed
+      - operation: Self-register own informal/gig business
+        contributor: allowed
+        editor: denied
         admin: allowed
       - operation: Change business type on unclaimed business
         contributor: denied
         editor: allowed
-        owner: denied
         admin: allowed
       - operation: Change business type on own claimed business
-        contributor: denied
+        contributor: allowed
         editor: denied
-        owner: allowed
         admin: allowed
       - operation: View business edit history
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Restore business from edit history
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
 
   - name: Claim Queue
@@ -57,35 +55,29 @@ resources:
       - operation: Submit a claim on an unclaimed business
         contributor: allowed
         editor: denied
-        owner: allowed
         admin: denied
       - operation: View pending claims
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Approve or reject a claim
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Directly assign ownership to a user
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Revoke ownership
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
 
   - name: Mis negocios
     rules:
       - operation: Access Mis negocios section
-        contributor: denied
-        editor: denied
-        owner: allowed
+        contributor: allowed
+        editor: allowed
         admin: allowed
 
   - name: User Management
@@ -93,27 +85,22 @@ resources:
       - operation: List and search users
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Assign role to user
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Disable or enable user account
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Generate temporary password
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Send password reset email
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
 
   - name: Feature Toggles
@@ -121,12 +108,10 @@ resources:
       - operation: View feature toggles
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Enable or disable a feature
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
 
   - name: Banner Settings
@@ -134,12 +119,10 @@ resources:
       - operation: Upload or update site banner
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
       - operation: Delete site banner
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed
 
   - name: Advertisements
@@ -147,15 +130,12 @@ resources:
       - operation: Create advertisement
         contributor: allowed
         editor: allowed
-        owner: allowed
         admin: allowed
       - operation: Delete own advertisement
         contributor: allowed
         editor: allowed
-        owner: allowed
         admin: allowed
       - operation: Delete any advertisement
         contributor: denied
         editor: denied
-        owner: denied
         admin: allowed

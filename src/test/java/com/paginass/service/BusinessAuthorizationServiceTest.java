@@ -140,9 +140,9 @@ class BusinessAuthorizationServiceTest {
     private void setupSecurityContext(String email) {
         var auth = new UsernamePasswordAuthenticationToken(
                 new org.springframework.security.core.userdetails.User(
-                        email, "", List.of(new SimpleGrantedAuthority("ROLE_OWNER"))),
+                        email, "", List.of(new SimpleGrantedAuthority("ROLE_CONTRIBUTOR"))),
                 null,
-                List.of(new SimpleGrantedAuthority("ROLE_OWNER")));
+                List.of(new SimpleGrantedAuthority("ROLE_CONTRIBUTOR")));
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
