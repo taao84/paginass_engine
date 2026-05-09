@@ -17,6 +17,7 @@ import com.paginass.entity.BusinessProfileEdit;
 import com.paginass.entity.BusinessType;
 import com.paginass.entity.ClaimStatus;
 import com.paginass.entity.User;
+import com.paginass.entity.UserRole;
 import com.paginass.repository.BusinessClaimRepository;
 import com.paginass.repository.BusinessLocationProjection;
 import com.paginass.repository.BusinessProfileEditRepository;
@@ -202,7 +203,7 @@ public class BusinessProfileService {
         profile.setLatitude(request.latitude());
         profile.setLongitude(request.longitude());
 
-        if (request.bizType() != null) {
+        if (request.bizType() != null && user.getRole() == UserRole.ADMIN) {
             try {
                 profile.setBizType(BusinessType.valueOf(request.bizType()));
             } catch (IllegalArgumentException e) {

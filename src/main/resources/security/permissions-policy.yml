@@ -38,7 +38,7 @@ resources:
         editor: allowed
         admin: allowed
       - operation: Change business type on own claimed business
-        contributor: allowed
+        contributor: denied
         editor: denied
         admin: allowed
       - operation: View business edit history
