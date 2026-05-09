@@ -2,10 +2,12 @@ package com.paginass.controller;
 
 import com.paginass.dto.BusinessProfileDetailDto;
 import com.paginass.dto.BusinessProfileUpdateRequestDto;
+import com.paginass.dto.ContributorBusinessCreateRequestDto;
 import com.paginass.dto.ImageOrderRequestDto;
 import com.paginass.service.BusinessProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +22,13 @@ import java.util.UUID;
 public class BusinessProfileController {
 
     private final BusinessProfileService businessProfileService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public BusinessProfileDetailDto createBusiness(
+            @Valid @RequestBody ContributorBusinessCreateRequestDto request) {
+        return businessProfileService.createOwnedBusiness(request);
+    }
 
     @GetMapping
     public ResponseEntity<List<BusinessProfileDetailDto>> listMyBusinesses() {

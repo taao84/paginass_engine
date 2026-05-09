@@ -8,6 +8,7 @@ import com.paginass.dto.BusinessProfileDetailDto;
 import com.paginass.dto.BusinessProfileEditDto;
 import com.paginass.dto.BusinessProfileSummaryDto;
 import com.paginass.dto.BusinessProfileUpdateRequestDto;
+import com.paginass.dto.ContributorBusinessCreateRequestDto;
 import com.paginass.dto.DirectoryEntryDto;
 import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.TagCloudItemDto;
@@ -67,6 +68,7 @@ public class BusinessProfileService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final ObjectMapper objectMapper;
+    private final LocalAuthService localAuthService;
 
     @Transactional(readOnly = true)
     public SearchResponseDto search(String query, int page) {
@@ -154,6 +156,53 @@ public class BusinessProfileService {
         return businessProfileRepository.findAllTagsWithCount().stream()
                 .map(p -> new TagCloudItemDto(p.getTag(), p.getCnt()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasOwnedBusiness(java.util.UUID userId) {
+        return businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(userId);
+    }
+
+    @Transactional
+    public BusinessProfileDetailDto createOwnedBusiness(ContributorBusinessCreateRequestDto request) {
+        User user = resolveCurrentUser();
+
+        BusinessType type;
+        try {
+            type = BusinessType.valueOf(request.bizType());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid bizType: " + request.bizType());
+        }
+        if (type == BusinessType.BRICK_AND_MORTAR) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "BRICK_AND_MORTAR businesses cannot be self-registered");
+        }
+
+        if (businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "You already own a business");
+        }
+
+        Map<String, String> contactInfo = new HashMap<>();
+        if (request.phones() != null) contactInfo.put("phones", request.phones());
+        if (request.contactHours() != null) contactInfo.put("hours", request.contactHours());
+        if (request.address() != null) contactInfo.put("address", request.address());
+        if (request.whatsapp() != null && !request.whatsapp().isBlank()) contactInfo.put("whatsapp", request.whatsapp());
+
+        BusinessProfile profile = new BusinessProfile();
+        profile.setOwnerId(user.getId());
+        profile.setCreatedBy(user.getId());
+        profile.setName(request.name());
+        profile.setSlug(localAuthService.generateSlug(request.name()));
+        profile.setBizType(type);
+        profile.setDescription(request.description());
+        profile.setContactInfo(contactInfo);
+        profile.setTags(normalizeTags(request.services()));
+        profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
+        profile.setLatitude(request.latitude());
+        profile.setLongitude(request.longitude());
+        profile.setClaimed(true);
+        profile.setMiniSiteEnabled(false);
+
+        return toDetailDto(businessProfileRepository.save(profile));
     }
 
     @Transactional(readOnly = true)

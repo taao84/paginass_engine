@@ -9,6 +9,7 @@ import com.paginass.dto.UpdateUserProfileRequestDto;
 import com.paginass.entity.User;
 import com.paginass.repository.UserRepository;
 import com.paginass.service.AdminUserService;
+import com.paginass.service.BusinessProfileService;
 import com.paginass.service.EmailVerificationService;
 import com.paginass.service.LocalAuthService;
 import jakarta.validation.Valid;
@@ -31,6 +32,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
     private final AdminUserService adminUserService;
+    private final BusinessProfileService businessProfileService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
@@ -69,7 +71,11 @@ public class AuthController {
 
         String email = resolveEmail(authentication);
         return userRepository.findByEmail(email)
-                .map(user -> ResponseEntity.ok(new CurrentUserDto(user.getFullName(), user.getEmail(), user.getRole())))
+                .map(user -> ResponseEntity.ok(new CurrentUserDto(
+                        user.getFullName(),
+                        user.getEmail(),
+                        user.getRole(),
+                        businessProfileService.hasOwnedBusiness(user.getId()))))
                 .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 
@@ -88,7 +94,11 @@ public class AuthController {
         user.setFullName(request.fullName());
         userRepository.save(user);
 
-        return ResponseEntity.ok(new CurrentUserDto(user.getFullName(), user.getEmail(), user.getRole()));
+        return ResponseEntity.ok(new CurrentUserDto(
+                user.getFullName(),
+                user.getEmail(),
+                user.getRole(),
+                businessProfileService.hasOwnedBusiness(user.getId())));
     }
 
     private String resolveEmail(Authentication authentication) {

@@ -128,6 +128,7 @@ public class SecurityConfig {
                 .requestMatchers(PUBLIC_PATHS).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/profile/businesses").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/profile/businesses").hasRole("CONTRIBUTOR")
                 .requestMatchers(HttpMethod.POST, "/api/profile/setup").hasAnyRole("EDITOR", "ADMIN")
                 .requestMatchers("/api/ads/**").authenticated()
                 .anyRequest().authenticated()
