@@ -129,6 +129,19 @@ resources:
         owner: denied
         admin: allowed
 
+  - name: Banner Settings
+    rules:
+      - operation: Upload or update site banner
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
+      - operation: Delete site banner
+        contributor: denied
+        editor: denied
+        owner: denied
+        admin: allowed
+
   - name: Advertisements
     rules:
       - operation: Create advertisement
