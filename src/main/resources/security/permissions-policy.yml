@@ -98,9 +98,13 @@ resources:
         contributor: denied
         editor: denied
         admin: allowed
-      - operation: Send password reset email
+      - operation: Send password reset email (admin-initiated)
         contributor: denied
         editor: denied
+        admin: allowed
+      - operation: Request self-service password reset (public — no login required)
+        contributor: allowed
+        editor: allowed
         admin: allowed
 
   - name: Feature Toggles

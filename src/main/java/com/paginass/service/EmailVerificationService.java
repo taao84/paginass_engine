@@ -65,7 +65,7 @@ public class EmailVerificationService {
     @Transactional
     public String[] prepareResend(String email) {
         return userRepository.findByEmail(email).map(user -> {
-            if (user.isEmailVerified() || !"local".equals(user.getOauthProvider())) {
+            if (user.isEmailVerified() || !LocalAuthService.LOCAL_PROVIDER.equals(user.getOauthProvider())) {
                 return null;
             }
             if (user.getTokenExpiresAt() != null) {

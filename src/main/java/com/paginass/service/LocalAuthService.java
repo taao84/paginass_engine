@@ -14,16 +14,19 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LocalAuthService {
 
+    public static final String LOCAL_PROVIDER = "local";
+
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final EmailVerificationService emailVerificationService;
+    private final AdminUserService adminUserService;
 
     public User registerUser(String email, String rawPassword, String fullName) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Email already in use");
         }
         User user = new User();
-        user.setOauthProvider("local");
+        user.setOauthProvider(LOCAL_PROVIDER);
         user.setOauthId(email);
         user.setEmail(email);
         user.setFullName(fullName);
@@ -33,6 +36,12 @@ public class LocalAuthService {
         User saved = userRepository.save(user);
         emailVerificationService.generateAndSendToken(saved);
         return saved;
+    }
+
+    public void requestPasswordReset(String email) {
+        userRepository.findByEmail(email)
+                .filter(user -> LOCAL_PROVIDER.equals(user.getOauthProvider()))
+                .ifPresent(user -> adminUserService.initiatePasswordReset(user.getId()));
     }
 
     public String generateSlug(String name) {

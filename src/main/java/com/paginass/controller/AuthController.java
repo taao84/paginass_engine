@@ -2,6 +2,7 @@ package com.paginass.controller;
 
 import com.paginass.dto.AuthResponseDto;
 import com.paginass.dto.CurrentUserDto;
+import com.paginass.dto.ForgotPasswordRequestDto;
 import com.paginass.dto.RegisterRequestDto;
 import com.paginass.dto.ResendVerificationRequestDto;
 import com.paginass.dto.ResetPasswordConfirmRequestDto;
@@ -54,6 +55,12 @@ public class AuthController {
     @PostMapping("/resend-verification")
     public ResponseEntity<Void> resendVerification(@Valid @RequestBody ResendVerificationRequestDto request) {
         emailVerificationService.resendVerification(request.email());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDto request) {
+        localAuthService.requestPasswordReset(request.email());
         return ResponseEntity.ok().build();
     }
 
