@@ -1,8 +1,10 @@
 package com.paginass.controller;
 
 import com.paginass.dto.BannerHistoryEntryDto;
+import com.paginass.dto.BannerOverlayRequestDto;
 import com.paginass.dto.BannerSettingDto;
 import com.paginass.service.SettingsService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,6 +32,12 @@ public class SettingsController {
     @GetMapping("/public/settings/banner")
     public ResponseEntity<BannerSettingDto> getBanner() {
         return ResponseEntity.ok(settingsService.getBannerSetting());
+    }
+
+    @PutMapping("/admin/settings/banner/overlay")
+    public ResponseEntity<Void> updateOverlay(@Valid @RequestBody BannerOverlayRequestDto request) {
+        settingsService.updateOverlay(request.overlayColor(), request.overlayOpacity(), request.overlayText(), request.overlayBorder(), request.overlaySpacing(), request.overlayY());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(value = "/admin/settings/banner", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

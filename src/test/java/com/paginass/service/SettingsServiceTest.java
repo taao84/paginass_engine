@@ -67,7 +67,7 @@ class SettingsServiceTest {
 
     @Test
     void uploadBanner_fileTooLarge_throws400() {
-        MockMultipartFile file = new MockMultipartFile("file", "banner.jpg", "image/jpeg", new byte[4 * 1024 * 1024]);
+        MockMultipartFile file = new MockMultipartFile("file", "banner.jpg", "image/jpeg", new byte[4 * 1024 * 1024 + 1]);
 
         assertThatThrownBy(() -> settingsService.uploadBanner(file))
                 .isInstanceOf(ResponseStatusException.class)
@@ -217,12 +217,104 @@ class SettingsServiceTest {
         assertThat(result.get(0).url()).isEqualTo("http://localhost/uploads/banner/abc.jpg");
     }
 
+    // --- getBannerSetting (overlay fields) ---
+
+    @Test
+    void getBannerSetting_withOverlaySettings_returnsConfiguredValues() {
+        AppSetting colorSetting = settingWith("banner_overlay_color", "#ff0000");
+        AppSetting opacitySetting = settingWith("banner_overlay_opacity", "0.6");
+        AppSetting textSetting = settingWith("banner_overlay_text", "MI PUEBLO");
+        when(appSettingRepository.findById("banner")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_color")).thenReturn(Optional.of(colorSetting));
+        when(appSettingRepository.findById("banner_overlay_opacity")).thenReturn(Optional.of(opacitySetting));
+        when(appSettingRepository.findById("banner_overlay_text")).thenReturn(Optional.of(textSetting));
+        when(appSettingRepository.findById("banner_overlay_border")).thenReturn(Optional.of(settingWith("banner_overlay_border", "true")));
+        when(appSettingRepository.findById("banner_overlay_spacing")).thenReturn(Optional.of(settingWith("banner_overlay_spacing", "200")));
+        when(appSettingRepository.findById("banner_overlay_y")).thenReturn(Optional.of(settingWith("banner_overlay_y", "100")));
+
+        BannerSettingDto result = settingsService.getBannerSetting();
+
+        assertThat(result.overlayColor()).isEqualTo("#ff0000");
+        assertThat(result.overlayOpacity()).isEqualTo(0.6);
+        assertThat(result.overlayText()).isEqualTo("MI PUEBLO");
+        assertThat(result.overlayBorder()).isTrue();
+        assertThat(result.overlaySpacing()).isEqualTo(200);
+        assertThat(result.overlayY()).isEqualTo(100);
+    }
+
+    @Test
+    void getBannerSetting_noOverlaySettings_returnsDefaults() {
+        when(appSettingRepository.findById("banner")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_color")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_opacity")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_text")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_border")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_spacing")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_y")).thenReturn(Optional.empty());
+
+        BannerSettingDto result = settingsService.getBannerSetting();
+
+        assertThat(result.overlayColor()).isEqualTo("#000000");
+        assertThat(result.overlayOpacity()).isEqualTo(0.3);
+        assertThat(result.overlayText()).isEqualTo("PAGINASS");
+        assertThat(result.overlayBorder()).isFalse();
+        assertThat(result.overlaySpacing()).isEqualTo(130);
+        assertThat(result.overlayY()).isEqualTo(141);
+    }
+
+    // --- updateOverlay ---
+
+    @Test
+    void updateOverlay_savesColorOpacityAndTextSettings() {
+        when(appSettingRepository.findById("banner_overlay_color")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_opacity")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_text")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_border")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_spacing")).thenReturn(Optional.empty());
+        when(appSettingRepository.findById("banner_overlay_y")).thenReturn(Optional.empty());
+        when(appSettingRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        settingsService.updateOverlay("#aabbcc", 0.5, "MI PUEBLO", true, 200, 100);
+
+        ArgumentCaptor<AppSetting> captor = ArgumentCaptor.forClass(AppSetting.class);
+        verify(appSettingRepository, times(6)).save(captor.capture());
+        List<AppSetting> saved = captor.getAllValues();
+        assertThat(saved).anySatisfy(s -> {
+            assertThat(s.getSettingKey()).isEqualTo("banner_overlay_color");
+            assertThat(s.getSettingValue()).isEqualTo("#aabbcc");
+        });
+        assertThat(saved).anySatisfy(s -> {
+            assertThat(s.getSettingKey()).isEqualTo("banner_overlay_opacity");
+            assertThat(s.getSettingValue()).isEqualTo("0.5");
+        });
+        assertThat(saved).anySatisfy(s -> {
+            assertThat(s.getSettingKey()).isEqualTo("banner_overlay_text");
+            assertThat(s.getSettingValue()).isEqualTo("MI PUEBLO");
+        });
+        assertThat(saved).anySatisfy(s -> {
+            assertThat(s.getSettingKey()).isEqualTo("banner_overlay_border");
+            assertThat(s.getSettingValue()).isEqualTo("true");
+        });
+        assertThat(saved).anySatisfy(s -> {
+            assertThat(s.getSettingKey()).isEqualTo("banner_overlay_spacing");
+            assertThat(s.getSettingValue()).isEqualTo("200");
+        });
+        assertThat(saved).anySatisfy(s -> {
+            assertThat(s.getSettingKey()).isEqualTo("banner_overlay_y");
+            assertThat(s.getSettingValue()).isEqualTo("100");
+        });
+    }
+
     // --- helpers ---
 
     private AppSetting settingWith(String subPath) {
+        return settingWith("banner", subPath);
+    }
+
+    private AppSetting settingWith(String key, String value) {
         AppSetting s = new AppSetting();
-        s.setSettingKey("banner");
-        s.setSettingValue(subPath);
+        s.setSettingKey(key);
+        s.setSettingValue(value);
         s.setUpdatedAt(OffsetDateTime.now());
         return s;
     }

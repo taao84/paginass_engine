@@ -60,7 +60,7 @@ public class BusinessProfileService {
     private static final int PAGE_SIZE = 10;
     private static final int DIRECTORY_PAGE_SIZE = 50;
     private static final int MAX_IMAGES = 5;
-    private static final long MAX_IMAGE_BYTES = 3 * 1024 * 1024L;
+    private static final long MAX_IMAGE_BYTES = 4 * 1024 * 1024L;
 
     private final BusinessProfileRepository businessProfileRepository;
     private final BusinessClaimRepository businessClaimRepository;
@@ -299,7 +299,7 @@ public class BusinessProfileService {
             """)
     public BusinessProfileDetailDto uploadImage(UUID businessId, MultipartFile file) {
         if (file.getSize() > MAX_IMAGE_BYTES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image must not exceed 3 MB");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image must not exceed 4 MB");
         }
         BusinessProfile profile = findProfileOrThrow(businessId);
 

@@ -730,7 +730,7 @@ class BusinessProfileServiceTest {
     void uploadImage_fileTooLarge_throws400() {
         UUID businessId = UUID.randomUUID();
         MultipartFile file = mock(MultipartFile.class);
-        when(file.getSize()).thenReturn(4 * 1024 * 1024L);
+        when(file.getSize()).thenReturn(4 * 1024 * 1024L + 1);
 
         assertThatThrownBy(() -> service.uploadImage(businessId, file))
                 .isInstanceOf(ResponseStatusException.class)

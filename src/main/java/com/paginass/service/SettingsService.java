@@ -23,7 +23,19 @@ import java.util.UUID;
 public class SettingsService {
 
     private static final String BANNER_KEY = "banner";
-    private static final long MAX_BANNER_BYTES = 3 * 1024 * 1024L;
+    private static final String OVERLAY_COLOR_KEY = "banner_overlay_color";
+    private static final String OVERLAY_OPACITY_KEY = "banner_overlay_opacity";
+    private static final String OVERLAY_TEXT_KEY = "banner_overlay_text";
+    private static final String OVERLAY_BORDER_KEY = "banner_overlay_border";
+    private static final String OVERLAY_SPACING_KEY = "banner_overlay_spacing";
+    private static final String OVERLAY_Y_KEY = "banner_overlay_y";
+    private static final String DEFAULT_OVERLAY_COLOR = "#000000";
+    private static final double DEFAULT_OVERLAY_OPACITY = 0.3;
+    private static final String DEFAULT_OVERLAY_TEXT = "PAGINASS";
+    private static final boolean DEFAULT_OVERLAY_BORDER = false;
+    private static final int DEFAULT_OVERLAY_SPACING = 130;
+    private static final int DEFAULT_OVERLAY_Y = 141;
+    private static final long MAX_BANNER_BYTES = 4 * 1024 * 1024L;
     private static final int MAX_HISTORY = 12;
 
     private final AppSettingRepository appSettingRepository;
@@ -32,9 +44,28 @@ public class SettingsService {
 
     @Transactional(readOnly = true)
     public BannerSettingDto getBannerSetting() {
-        return appSettingRepository.findById(BANNER_KEY)
-                .map(s -> new BannerSettingDto(storageService.toPublicUrl(s.getSettingValue())))
-                .orElse(new BannerSettingDto(null));
+        String imageUrl = appSettingRepository.findById(BANNER_KEY)
+                .map(s -> storageService.toPublicUrl(s.getSettingValue()))
+                .orElse(null);
+        String overlayColor = appSettingRepository.findById(OVERLAY_COLOR_KEY)
+                .map(AppSetting::getSettingValue)
+                .orElse(DEFAULT_OVERLAY_COLOR);
+        double overlayOpacity = appSettingRepository.findById(OVERLAY_OPACITY_KEY)
+                .map(s -> Double.parseDouble(s.getSettingValue()))
+                .orElse(DEFAULT_OVERLAY_OPACITY);
+        String overlayText = appSettingRepository.findById(OVERLAY_TEXT_KEY)
+                .map(AppSetting::getSettingValue)
+                .orElse(DEFAULT_OVERLAY_TEXT);
+        boolean overlayBorder = appSettingRepository.findById(OVERLAY_BORDER_KEY)
+                .map(s -> Boolean.parseBoolean(s.getSettingValue()))
+                .orElse(DEFAULT_OVERLAY_BORDER);
+        int overlaySpacing = appSettingRepository.findById(OVERLAY_SPACING_KEY)
+                .map(s -> Integer.parseInt(s.getSettingValue()))
+                .orElse(DEFAULT_OVERLAY_SPACING);
+        int overlayY = appSettingRepository.findById(OVERLAY_Y_KEY)
+                .map(s -> Integer.parseInt(s.getSettingValue()))
+                .orElse(DEFAULT_OVERLAY_Y);
+        return new BannerSettingDto(imageUrl, overlayColor, overlayOpacity, overlayText, overlayBorder, overlaySpacing, overlayY);
     }
 
     @Transactional(readOnly = true)
@@ -44,9 +75,19 @@ public class SettingsService {
                 .toList();
     }
 
+    @Transactional
+    public void updateOverlay(String color, double opacity, String text, boolean border, int spacing, int y) {
+        saveSetting(OVERLAY_COLOR_KEY, color);
+        saveSetting(OVERLAY_OPACITY_KEY, String.valueOf(opacity));
+        saveSetting(OVERLAY_TEXT_KEY, text);
+        saveSetting(OVERLAY_BORDER_KEY, String.valueOf(border));
+        saveSetting(OVERLAY_SPACING_KEY, String.valueOf(spacing));
+        saveSetting(OVERLAY_Y_KEY, String.valueOf(y));
+    }
+
     public void uploadBanner(MultipartFile file) {
         if (file.getSize() > MAX_BANNER_BYTES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image must not exceed 3 MB");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image must not exceed 4 MB");
         }
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
@@ -62,24 +103,14 @@ public class SettingsService {
 
         bannerHistoryRepository.save(new BannerHistory(subPath));
         pruneHistory();
-
-        AppSetting setting = appSettingRepository.findById(BANNER_KEY).orElseGet(AppSetting::new);
-        setting.setSettingKey(BANNER_KEY);
-        setting.setSettingValue(subPath);
-        setting.setUpdatedAt(OffsetDateTime.now());
-        appSettingRepository.save(setting);
+        saveSetting(BANNER_KEY, subPath);
     }
 
     @Transactional
     public void applyHistoryEntry(UUID id) {
         BannerHistory entry = bannerHistoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "History entry not found"));
-
-        AppSetting setting = appSettingRepository.findById(BANNER_KEY).orElseGet(AppSetting::new);
-        setting.setSettingKey(BANNER_KEY);
-        setting.setSettingValue(entry.getSubPath());
-        setting.setUpdatedAt(OffsetDateTime.now());
-        appSettingRepository.save(setting);
+        saveSetting(BANNER_KEY, entry.getSubPath());
     }
 
     public void deleteHistoryEntry(UUID id) {
@@ -101,6 +132,14 @@ public class SettingsService {
 
     public void deleteBanner() {
         appSettingRepository.findById(BANNER_KEY).ifPresent(appSettingRepository::delete);
+    }
+
+    private void saveSetting(String key, String value) {
+        AppSetting setting = appSettingRepository.findById(key).orElseGet(AppSetting::new);
+        setting.setSettingKey(key);
+        setting.setSettingValue(value);
+        setting.setUpdatedAt(OffsetDateTime.now());
+        appSettingRepository.save(setting);
     }
 
     private void pruneHistory() {
