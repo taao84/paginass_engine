@@ -1,6 +1,7 @@
 package com.paginass.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paginass.config.FeatureKey;
 import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.TagCloudItemDto;
 import com.paginass.entity.BusinessProfile;
@@ -24,6 +25,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.mockito.Mockito.lenient;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -53,6 +56,7 @@ class BusinessProfileServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private StorageService storageService;
     @Mock private ObjectMapper objectMapper;
+    @Mock private AppFeatureService appFeatureService;
 
     @InjectMocks
     private BusinessProfileService service;
@@ -65,6 +69,8 @@ class BusinessProfileServiceTest {
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
         SecurityContextHolder.getContext().setAuthentication(auth);
+        // default to legacy search path; tiered-search tests override this
+        lenient().when(appFeatureService.isEnabled(FeatureKey.TIERED_SEARCH)).thenReturn(false);
     }
 
     @AfterEach
@@ -720,6 +726,60 @@ class BusinessProfileServiceTest {
         service.updateProfile(profileId, request);
 
         assertThat(profile.getContactInfo()).doesNotContainKey("whatsapp");
+    }
+
+    // -------------------------------------------------------------------------
+    // search — tiered feature flag routing
+    // -------------------------------------------------------------------------
+
+    @Test
+    void search_tieredFlagDisabled_usesLegacyRepository() {
+        when(businessProfileRepository.searchBusinessProfiles("camara", "camara:*", 10, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countSearchResults("camara", "camara:*")).thenReturn(0L);
+
+        service.search("camara", 0);
+
+        verify(businessProfileRepository).searchBusinessProfiles("camara", "camara:*", 10, 0);
+        verify(businessProfileRepository, never()).searchBusinessProfilesTiered(any(), any(), anyInt(), anyInt());
+    }
+
+    @Test
+    void search_tieredFlagEnabled_usesTieredRepository() {
+        when(appFeatureService.isEnabled(FeatureKey.TIERED_SEARCH)).thenReturn(true);
+        when(businessProfileRepository.searchBusinessProfilesTiered("camara", "camara:*", 10, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countSearchResultsTiered("camara", "camara:*")).thenReturn(0L);
+
+        service.search("camara", 0);
+
+        verify(businessProfileRepository).searchBusinessProfilesTiered("camara", "camara:*", 10, 0);
+        verify(businessProfileRepository, never()).searchBusinessProfiles(any(), any(), anyInt(), anyInt());
+    }
+
+    @Test
+    void search_tieredFlagEnabled_neverCallsLegacyCount() {
+        when(appFeatureService.isEnabled(FeatureKey.TIERED_SEARCH)).thenReturn(true);
+        when(businessProfileRepository.searchBusinessProfilesTiered(any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countSearchResultsTiered(any(), any())).thenReturn(3L);
+
+        var result = service.search("camara", 0);
+
+        assertThat(result.totalResults()).isEqualTo(3L);
+        verify(businessProfileRepository, never()).countSearchResults(any(), any());
+    }
+
+    @Test
+    void search_tieredFlagEnabled_multiWordTransformedToSimplePrefixFormat() {
+        when(appFeatureService.isEnabled(FeatureKey.TIERED_SEARCH)).thenReturn(true);
+        when(businessProfileRepository.searchBusinessProfilesTiered("pollo asado", "pollo:* & asado:*", 10, 0))
+                .thenReturn(Collections.emptyList());
+        when(businessProfileRepository.countSearchResultsTiered("pollo asado", "pollo:* & asado:*")).thenReturn(0L);
+
+        service.search("pollo asado", 0);
+
+        verify(businessProfileRepository).searchBusinessProfilesTiered("pollo asado", "pollo:* & asado:*", 10, 0);
     }
 
     // -------------------------------------------------------------------------

@@ -59,6 +59,48 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
     long countSearchResults(@Param("rawQuery") String rawQuery, @Param("prefixQuery") String prefixQuery);
 
     @Query(value = """
+            SELECT b.id::text                                                          AS id,
+                   b.name                                                              AS name,
+                   b.slug                                                              AS slug,
+                   b.biz_type::text                                                    AS bizType,
+                   b.description                                                       AS description,
+                   b.tags::text                                                        AS tags,
+                   b.contact_info::text                                                AS contactInfo,
+                   GREATEST(
+                       ts_rank(b.search_vector,        websearch_to_tsquery('spanish', :rawQuery)),
+                       ts_rank(b.search_vector_simple, to_tsquery('simple',            :prefixQuery))
+                   )                                                                   AS score,
+                   b.mini_site_enabled                                                 AS miniSiteEnabled,
+                   b.is_claimed                                                        AS isClaimed,
+                   b.delivers_to_home                                                  AS deliversToHome
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  (
+                       b.search_vector        @@ websearch_to_tsquery('spanish', :rawQuery)
+                   OR  b.search_vector_simple @@ to_tsquery('simple',            :prefixQuery)
+                   )
+            ORDER  BY (CASE WHEN b.search_vector_simple @@ to_tsquery('simple', :prefixQuery) THEN 0 ELSE 1 END) ASC,
+                      score DESC
+            LIMIT  :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<BusinessProfileSearchProjection> searchBusinessProfilesTiered(
+            @Param("rawQuery") String rawQuery,
+            @Param("prefixQuery") String prefixQuery,
+            @Param("limit") int limit,
+            @Param("offset") int offset);
+
+    @Query(value = """
+            SELECT count(*)
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  (
+                       b.search_vector        @@ websearch_to_tsquery('spanish', :rawQuery)
+                   OR  b.search_vector_simple @@ to_tsquery('simple',            :prefixQuery)
+                   )
+            """, nativeQuery = true)
+    long countSearchResultsTiered(@Param("rawQuery") String rawQuery, @Param("prefixQuery") String prefixQuery);
+
+    @Query(value = """
             SELECT b.name         AS name,
                    b.slug         AS slug,
                    b.biz_type::text AS bizType

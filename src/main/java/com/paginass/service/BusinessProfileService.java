@@ -2,6 +2,7 @@ package com.paginass.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paginass.config.FeatureKey;
 import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.BusinessProfileDetailDto;
@@ -69,6 +70,7 @@ public class BusinessProfileService {
     private final StorageService storageService;
     private final ObjectMapper objectMapper;
     private final LocalAuthService localAuthService;
+    private final AppFeatureService appFeatureService;
 
     @Transactional(readOnly = true)
     public SearchResponseDto search(String query, int page) {
@@ -78,8 +80,15 @@ public class BusinessProfileService {
         }
         int offset = page * PAGE_SIZE;
 
-        List<BusinessProfileSearchProjection> rows = businessProfileRepository.searchBusinessProfiles(query, prefixQuery, PAGE_SIZE, offset);
-        long total = businessProfileRepository.countSearchResults(query, prefixQuery);
+        List<BusinessProfileSearchProjection> rows;
+        long total;
+        if (appFeatureService.isEnabled(FeatureKey.TIERED_SEARCH)) {
+            rows  = businessProfileRepository.searchBusinessProfilesTiered(query, prefixQuery, PAGE_SIZE, offset);
+            total = businessProfileRepository.countSearchResultsTiered(query, prefixQuery);
+        } else {
+            rows  = businessProfileRepository.searchBusinessProfiles(query, prefixQuery, PAGE_SIZE, offset);
+            total = businessProfileRepository.countSearchResults(query, prefixQuery);
+        }
 
         List<BusinessProfileSummaryDto> results = rows.stream()
                 .map(this::mapRow)
