@@ -76,4 +76,30 @@ public class SmtpMailService implements MailService {
     public void recoverSendPasswordResetEmail(MailException e, String to, String resetLink) {
         log.error("Failed to send password reset email to {} after retries: {}", to, e.getMessage());
     }
+
+    @Override
+    @Retryable(
+        retryFor = MailException.class,
+        maxAttemptsExpression = "${app.mail.retry.max-attempts:2}",
+        backoff = @Backoff(delayExpression = "${app.mail.retry.delay-ms:1000}")
+    )
+    public void sendClaimApprovedEmail(String to, String claimantName, String businessName, String miniSiteUrl) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailFrom);
+        message.setTo(to);
+        message.setSubject("Tu solicitud de propiedad fue aprobada — Paginass");
+        message.setText(
+                "Hola " + claimantName + ",\n\n" +
+                "Tu solicitud para reclamar la propiedad de \"" + businessName + "\" ha sido aprobada.\n\n" +
+                "Ya puedes administrar tu negocio desde tu mini-sitio:\n\n" +
+                miniSiteUrl + "\n\n" +
+                "— El equipo de Paginass"
+        );
+        mailSender.send(message);
+    }
+
+    @Recover
+    public void recoverSendClaimApprovedEmail(MailException e, String to, String claimantName, String businessName, String miniSiteUrl) {
+        log.error("Failed to send claim approved email to {} after retries: {}", to, e.getMessage());
+    }
 }

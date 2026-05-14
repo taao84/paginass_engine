@@ -20,4 +20,9 @@ public class ConsoleMailService implements MailService {
     public void sendPasswordResetEmail(String to, String resetLink) {
         log.info("[DEV] Password reset email for {} → {}", to, resetLink);
     }
+
+    @Override
+    public void sendClaimApprovedEmail(String to, String claimantName, String businessName, String miniSiteUrl) {
+        log.info("[DEV] Claim approved email for {} ({}) — business '{}' → {}", to, claimantName, businessName, miniSiteUrl);
+    }
 }

@@ -11,6 +11,9 @@ import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,13 @@ public class ClaimService {
     private final BusinessClaimRepository businessClaimRepository;
     private final BusinessProfileRepository businessProfileRepository;
     private final UserRepository userRepository;
+    private final MailService mailService;
+
+    @Autowired @Lazy
+    private ClaimService self;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Transactional
     public ClaimResponseDto submitClaim(UUID businessId, User claimant) {
@@ -71,8 +81,17 @@ public class ClaimService {
                 .toList();
     }
 
-    @Transactional
     public ClaimResponseDto resolveClaim(UUID claimId, boolean approve) {
+        ClaimResponseDto dto = self.resolveClaimTx(claimId, approve);
+        if (approve && dto.claimantEmail() != null && !"Unknown".equals(dto.claimantEmail())) {
+            String miniSiteUrl = frontendUrl + "/" + dto.businessSlug();
+            mailService.sendClaimApprovedEmail(dto.claimantEmail(), dto.claimantName(), dto.businessName(), miniSiteUrl);
+        }
+        return dto;
+    }
+
+    @Transactional
+    public ClaimResponseDto resolveClaimTx(UUID claimId, boolean approve) {
         User admin = resolveCurrentUser();
         BusinessClaim claim = businessClaimRepository.findById(claimId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
