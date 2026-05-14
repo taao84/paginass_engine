@@ -253,7 +253,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, "BRICK_AND_MORTAR", null, null, null);
+                "Name", null, null, null, null, null, false, "BRICK_AND_MORTAR", null, null, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -274,7 +274,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, "INVALID_TYPE", null, null, null);
+                "Name", null, null, null, null, null, false, "INVALID_TYPE", null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.updateProfile(profileId, request))
                 .isInstanceOf(ResponseStatusException.class)
@@ -298,7 +298,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null, null);
+                "Name", null, null, null, null, null, false, null, null, null, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -508,7 +508,7 @@ class BusinessProfileServiceTest {
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
                 "Name", null, null, null, null,
                 List.of("Plomería", "Instalación Eléctrica", "PINTURA"),
-                false, null, null, null, null);
+                false, null, null, null, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -534,7 +534,7 @@ class BusinessProfileServiceTest {
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
                 "Name", null, null, null, null,
                 List.of("ceramica", "Cerámica", "CERAMICA"),
-                false, null, null, null, null);
+                false, null, null, null, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -557,12 +557,12 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var requestNull = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null, null);
+                "Name", null, null, null, null, null, false, null, null, null, null, null, null, null);
         service.updateProfile(profileId, requestNull);
         assertThat(profile.getTags()).isEmpty();
 
         var requestEmpty = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, List.of(), false, null, null, null, null);
+                "Name", null, null, null, null, List.of(), false, null, null, null, null, null, null, null);
         service.updateProfile(profileId, requestEmpty);
         assertThat(profile.getTags()).isEmpty();
     }
@@ -587,7 +587,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, 6.5006, -75.7422, null);
+                "Name", null, null, null, null, null, false, null, 6.5006, -75.7422, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -613,7 +613,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null, null);
+                "Name", null, null, null, null, null, false, null, null, null, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -675,7 +675,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null, "3001234567");
+                "Name", null, null, null, null, null, false, null, null, null, "3001234567", null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -698,7 +698,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null, null);
+                "Name", null, null, null, null, null, false, null, null, null, null, null, null, null);
 
         service.updateProfile(profileId, request);
 
@@ -721,7 +721,7 @@ class BusinessProfileServiceTest {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
 
         var request = new com.paginass.dto.BusinessProfileUpdateRequestDto(
-                "Name", null, null, null, null, null, false, null, null, null, "   ");
+                "Name", null, null, null, null, null, false, null, null, null, "   ", null, null, null);
 
         service.updateProfile(profileId, request);
 

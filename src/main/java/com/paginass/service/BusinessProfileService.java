@@ -40,7 +40,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
-import java.text.Normalizer;
+import com.paginass.util.TagNormalizer;
 import java.util.Arrays;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -195,6 +195,9 @@ public class BusinessProfileService {
         if (request.contactHours() != null) contactInfo.put("hours", request.contactHours());
         if (request.address() != null) contactInfo.put("address", request.address());
         if (request.whatsapp() != null && !request.whatsapp().isBlank()) contactInfo.put("whatsapp", request.whatsapp());
+        if (request.email() != null && !request.email().isBlank()) contactInfo.put("email", request.email());
+        if (request.website() != null && !request.website().isBlank()) contactInfo.put("website", request.website());
+        if (request.instagram() != null && !request.instagram().isBlank()) contactInfo.put("instagram", request.instagram());
 
         BusinessProfile profile = new BusinessProfile();
         profile.setOwnerId(user.getId());
@@ -254,6 +257,9 @@ public class BusinessProfileService {
         if (request.contactHours() != null) contactInfo.put("hours", request.contactHours());
         if (request.address() != null) contactInfo.put("address", request.address());
         if (request.whatsapp() != null && !request.whatsapp().isBlank()) contactInfo.put("whatsapp", request.whatsapp());
+        if (request.email() != null && !request.email().isBlank()) contactInfo.put("email", request.email());
+        if (request.website() != null && !request.website().isBlank()) contactInfo.put("website", request.website());
+        if (request.instagram() != null && !request.instagram().isBlank()) contactInfo.put("instagram", request.instagram());
         profile.setContactInfo(contactInfo);
 
         profile.setTags(normalizeTags(request.services()));
@@ -529,15 +535,7 @@ public class BusinessProfileService {
     }
 
     private List<String> normalizeTags(List<String> tags) {
-        if (tags == null) return List.of();
-        return tags.stream()
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(s -> Normalizer.normalize(s, Normalizer.Form.NFD)
-                        .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-                        .toLowerCase())
-                .distinct()
-                .collect(Collectors.toList());
+        return TagNormalizer.normalize(tags);
     }
 
     private String buildPrefixQuery(String input) {

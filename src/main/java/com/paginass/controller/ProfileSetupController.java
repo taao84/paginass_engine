@@ -8,6 +8,7 @@ import com.paginass.entity.User;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.UserRepository;
 import com.paginass.service.LocalAuthService;
+import com.paginass.util.TagNormalizer;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,11 +19,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
-import java.text.Normalizer;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/profile")
@@ -58,9 +56,12 @@ public class ProfileSetupController {
         if (request.contactHours() != null) contactInfo.put("hours", request.contactHours());
         if (request.address() != null) contactInfo.put("address", request.address());
         if (request.whatsapp() != null && !request.whatsapp().isBlank()) contactInfo.put("whatsapp", request.whatsapp());
+        if (request.email() != null && !request.email().isBlank()) contactInfo.put("email", request.email());
+        if (request.website() != null && !request.website().isBlank()) contactInfo.put("website", request.website());
+        if (request.instagram() != null && !request.instagram().isBlank()) contactInfo.put("instagram", request.instagram());
         profile.setContactInfo(contactInfo);
 
-        profile.setTags(normalizeTags(request.services()));
+        profile.setTags(TagNormalizer.normalize(request.services()));
         profile.setDeliversToHome(Boolean.TRUE.equals(request.deliversToHome()));
         profile.setLatitude(request.latitude());
         profile.setLongitude(request.longitude());
@@ -95,17 +96,5 @@ public class ProfileSetupController {
         return Boolean.TRUE.equals(request.isBrickAndMortar())
                 ? BusinessType.BRICK_AND_MORTAR
                 : BusinessType.INFORMAL;
-    }
-
-    private List<String> normalizeTags(List<String> tags) {
-        if (tags == null) return List.of();
-        return tags.stream()
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(s -> Normalizer.normalize(s, Normalizer.Form.NFD)
-                        .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-                        .toLowerCase())
-                .distinct()
-                .collect(Collectors.toList());
     }
 }

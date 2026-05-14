@@ -89,7 +89,7 @@ class ContributorBusinessCreationTest {
 
         var request = new ContributorBusinessCreateRequestDto(
                 "Mi Servicio", "INFORMAL", "desc", "3001234567", null, null, null,
-                List.of("plomeria"), false, null, null);
+                List.of("plomeria"), false, null, null, null, null, null);
 
         BusinessProfileDetailDto result = service.createOwnedBusiness(request);
 
@@ -109,7 +109,7 @@ class ContributorBusinessCreationTest {
         when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(false);
 
         var request = new ContributorBusinessCreateRequestDto(
-                "Juan Pérez", "GIG", null, null, null, null, null, null, null, null, null);
+                "Juan Pérez", "GIG", null, null, null, null, null, null, null, null, null, null, null, null);
 
         service.createOwnedBusiness(request);
 
@@ -126,7 +126,7 @@ class ContributorBusinessCreationTest {
     @Test
     void createOwnedBusiness_brickAndMortar_throws400() {
         var request = new ContributorBusinessCreateRequestDto(
-                "Ferretería", "BRICK_AND_MORTAR", null, null, null, null, null, null, null, null, null);
+                "Ferretería", "BRICK_AND_MORTAR", null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.createOwnedBusiness(request))
                 .isInstanceOf(ResponseStatusException.class)
@@ -138,7 +138,7 @@ class ContributorBusinessCreationTest {
         when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(true);
 
         var request = new ContributorBusinessCreateRequestDto(
-                "Mi Otro Negocio", "INFORMAL", null, null, null, null, null, null, null, null, null);
+                "Mi Otro Negocio", "INFORMAL", null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.createOwnedBusiness(request))
                 .isInstanceOf(ResponseStatusException.class)
@@ -150,10 +150,116 @@ class ContributorBusinessCreationTest {
         when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(false);
 
         var request = new ContributorBusinessCreateRequestDto(
-                "Mi Negocio", "GIG", null, null, null, null, null, null, null, null, null);
+                "Mi Negocio", "GIG", null, null, null, null, null, null, null, null, null, null, null, null);
 
         service.createOwnedBusiness(request);
 
         assertThat(contributor.getRole()).isEqualTo(UserRole.CONTRIBUTOR);
+    }
+
+    @Test
+    void createOwnedBusiness_contactLinks_storedInContactInfo() {
+        when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(false);
+
+        var request = new ContributorBusinessCreateRequestDto(
+                "Mi Negocio", "INFORMAL", null, null, null, null, null, null, false, null, null,
+                "info@ejemplo.co", "https://ejemplo.co", "@miNegocio");
+
+        service.createOwnedBusiness(request);
+
+        ArgumentCaptor<BusinessProfile> captor = ArgumentCaptor.forClass(BusinessProfile.class);
+        verify(businessProfileRepository).save(captor.capture());
+        java.util.Map<String, String> ci = captor.getValue().getContactInfo();
+
+        assertThat(ci).containsEntry("email", "info@ejemplo.co");
+        assertThat(ci).containsEntry("website", "https://ejemplo.co");
+        assertThat(ci).containsEntry("instagram", "@miNegocio");
+    }
+
+    @Test
+    void createOwnedBusiness_blankContactLinks_notStoredInContactInfo() {
+        when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(false);
+
+        var request = new ContributorBusinessCreateRequestDto(
+                "Mi Negocio", "INFORMAL", null, null, null, null, null, null, false, null, null,
+                "  ", null, "");
+
+        service.createOwnedBusiness(request);
+
+        ArgumentCaptor<BusinessProfile> captor = ArgumentCaptor.forClass(BusinessProfile.class);
+        verify(businessProfileRepository).save(captor.capture());
+        java.util.Map<String, String> ci = captor.getValue().getContactInfo();
+
+        assertThat(ci).doesNotContainKey("email");
+        assertThat(ci).doesNotContainKey("website");
+        assertThat(ci).doesNotContainKey("instagram");
+    }
+
+    @Test
+    void normalizeTags_preservesNTilde() {
+        when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(false);
+
+        var request = new ContributorBusinessCreateRequestDto(
+                "Test", "GIG", null, null, null, null, null,
+                List.of("piñata", "NIÑO", "cañón"), false, null, null, null, null, null);
+
+        service.createOwnedBusiness(request);
+
+        ArgumentCaptor<BusinessProfile> captor = ArgumentCaptor.forClass(BusinessProfile.class);
+        verify(businessProfileRepository).save(captor.capture());
+        List<String> tags = captor.getValue().getTags();
+
+        assertThat(tags).containsExactlyInAnyOrder("piñata", "niño", "cañon");
+    }
+
+    @Test
+    void normalizeTags_stripsAccentedVowels() {
+        when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(false);
+
+        var request = new ContributorBusinessCreateRequestDto(
+                "Test", "GIG", null, null, null, null, null,
+                List.of("plomería", "CARPINTERÍA", "fontanería"), false, null, null, null, null, null);
+
+        service.createOwnedBusiness(request);
+
+        ArgumentCaptor<BusinessProfile> captor = ArgumentCaptor.forClass(BusinessProfile.class);
+        verify(businessProfileRepository).save(captor.capture());
+        List<String> tags = captor.getValue().getTags();
+
+        assertThat(tags).containsExactlyInAnyOrder("plomeria", "carpinteria", "fontaneria");
+    }
+
+    @Test
+    void normalizeTags_stripsDotsAndSpecialChars() {
+        when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(false);
+
+        var request = new ContributorBusinessCreateRequestDto(
+                "Test", "GIG", null, null, null, null, null,
+                List.of("servicio.rapido", "plomería-general", "#fontanería"), false, null, null, null, null, null);
+
+        service.createOwnedBusiness(request);
+
+        ArgumentCaptor<BusinessProfile> captor = ArgumentCaptor.forClass(BusinessProfile.class);
+        verify(businessProfileRepository).save(captor.capture());
+        List<String> tags = captor.getValue().getTags();
+
+        assertThat(tags).containsExactlyInAnyOrder("serviciorapido", "plomeriageneral", "fontaneria");
+    }
+
+    @Test
+    void normalizeTags_deduplicates() {
+        when(businessProfileRepository.existsByOwnerIdAndIsClaimedTrue(contributor.getId())).thenReturn(false);
+
+        var request = new ContributorBusinessCreateRequestDto(
+                "Test", "GIG", null, null, null, null, null,
+                List.of("plomeria", "Plomeria", "PLOMERIA"), false, null, null, null, null, null);
+
+        service.createOwnedBusiness(request);
+
+        ArgumentCaptor<BusinessProfile> captor = ArgumentCaptor.forClass(BusinessProfile.class);
+        verify(businessProfileRepository).save(captor.capture());
+        List<String> tags = captor.getValue().getTags();
+
+        assertThat(tags).hasSize(1).containsExactly("plomeria");
     }
 }
