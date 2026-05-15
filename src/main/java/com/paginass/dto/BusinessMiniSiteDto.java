@@ -17,5 +17,6 @@ public record BusinessMiniSiteDto(
         boolean hasPendingClaim,
         boolean deliversToHome,
         Double latitude,
-        Double longitude
+        Double longitude,
+        long likeCount
 ) {}

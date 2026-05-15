@@ -8,6 +8,7 @@ public final class FeatureKey {
     public static final String ADVERTISEMENTS                = "advertisements";
     public static final String CONTRIBUTOR_BUSINESS_CREATION = "contributor_business_creation";
     public static final String TIERED_SEARCH                 = "tiered_search";
+    public static final String BUSINESS_LIKES                = "business_likes";
 
     private FeatureKey() {}
 }

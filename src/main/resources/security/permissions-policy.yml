@@ -129,6 +129,13 @@ resources:
         editor: denied
         admin: allowed
 
+  - name: Business Likes
+    rules:
+      - operation: Like or unlike a business
+        contributor: allowed
+        editor: allowed
+        admin: allowed
+
   - name: Advertisements
     rules:
       - operation: Create advertisement

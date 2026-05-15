@@ -71,6 +71,7 @@ public class BusinessProfileService {
     private final ObjectMapper objectMapper;
     private final LocalAuthService localAuthService;
     private final AppFeatureService appFeatureService;
+    private final BusinessLikeService businessLikeService;
 
     @Transactional(readOnly = true)
     public SearchResponseDto search(String query, int page) {
@@ -480,6 +481,7 @@ public class BusinessProfileService {
     private BusinessMiniSiteDto toMiniSiteDto(BusinessProfile profile) {
         boolean hasPendingClaim = businessClaimRepository
                 .existsByBusinessIdAndStatus(profile.getId(), ClaimStatus.PENDING);
+        long likeCount = businessLikeService.getLikeCount(profile.getId());
         return new BusinessMiniSiteDto(
                 profile.getId(),
                 profile.getName(),
@@ -493,7 +495,8 @@ public class BusinessProfileService {
                 hasPendingClaim,
                 profile.isDeliversToHome(),
                 profile.getLatitude(),
-                profile.getLongitude()
+                profile.getLongitude(),
+                likeCount
         );
     }
 
