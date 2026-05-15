@@ -330,7 +330,7 @@ public class BusinessProfileService {
         try {
             String extension = getExtension(file.getOriginalFilename());
             String subPath = "businesses/" + businessId + "/" + UUID.randomUUID() + extension;
-            storageService.saveFile(subPath, file.getInputStream());
+            storageService.saveFile(subPath, file.getInputStream(), file.getContentType());
             currentPaths.add(subPath);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save image");

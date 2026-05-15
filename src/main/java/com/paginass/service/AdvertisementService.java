@@ -74,7 +74,7 @@ public class AdvertisementService {
         try {
             for (MultipartFile file : files) {
                 String subPath = "ads/" + adId + "/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-                storageService.saveFile(subPath, file.getInputStream());
+                storageService.saveFile(subPath, file.getInputStream(), file.getContentType());
                 uploadedPaths.add(subPath);
             }
         } catch (IOException e) {

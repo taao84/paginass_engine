@@ -27,7 +27,7 @@ public class LocalFileStorageService implements StorageService {
     }
 
     @Override
-    public String saveFile(String subPath, InputStream inputStream) throws IOException {
+    public String saveFile(String subPath, InputStream inputStream, String contentType) throws IOException {
         Path target = uploadDir.resolve(subPath).normalize();
         if (!target.startsWith(uploadDir)) {
             throw new IllegalArgumentException("Invalid file path");

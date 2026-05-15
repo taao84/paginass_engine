@@ -96,7 +96,7 @@ public class SettingsService {
 
         String subPath = "banner/" + UUID.randomUUID() + getExtension(file.getOriginalFilename());
         try {
-            storageService.saveFile(subPath, file.getInputStream());
+            storageService.saveFile(subPath, file.getInputStream(), file.getContentType());
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save banner image");
         }

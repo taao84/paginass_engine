@@ -41,12 +41,13 @@ public class R2StorageService implements StorageService {
     }
 
     @Override
-    public String saveFile(String subPath, InputStream inputStream) throws IOException {
+    public String saveFile(String subPath, InputStream inputStream, String contentType) throws IOException {
         byte[] bytes = inputStream.readAllBytes();
         s3Client.putObject(
                 PutObjectRequest.builder()
                         .bucket(bucket)
                         .key(subPath)
+                        .contentType(contentType)
                         .build(),
                 RequestBody.fromBytes(bytes));
         return subPath;

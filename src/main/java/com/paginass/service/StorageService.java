@@ -8,7 +8,7 @@ public interface StorageService {
     /**
      * Saves a file and returns its sub-path (e.g. "businesses/uuid/image.jpg").
      */
-    String saveFile(String subPath, InputStream inputStream) throws IOException;
+    String saveFile(String subPath, InputStream inputStream, String contentType) throws IOException;
 
     void deleteFile(String subPath) throws IOException;
 
