@@ -9,7 +9,6 @@ public interface BusinessProfileSearchProjection {
     String getTags();
     String getContactInfo();
     Double getScore();
-    Boolean getMiniSiteEnabled();
     Boolean getIsClaimed();
     Boolean getDeliversToHome();
 }

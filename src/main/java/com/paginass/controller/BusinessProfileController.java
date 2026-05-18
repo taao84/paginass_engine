@@ -35,11 +35,6 @@ public class BusinessProfileController {
         return ResponseEntity.ok(businessProfileService.getProfilesByOwner());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<BusinessProfileDetailDto> getBusiness(@PathVariable UUID id) {
-        return ResponseEntity.ok(businessProfileService.getProfileByOwner(id));
-    }
-
     @GetMapping("/{id}/for-edit")
     public ResponseEntity<BusinessProfileDetailDto> getBusinessForEdit(@PathVariable UUID id) {
         return ResponseEntity.ok(businessProfileService.getProfileById(id));
@@ -50,11 +45,6 @@ public class BusinessProfileController {
             @PathVariable UUID id,
             @Valid @RequestBody BusinessProfileUpdateRequestDto request) {
         return ResponseEntity.ok(businessProfileService.updateProfile(id, request));
-    }
-
-    @PatchMapping("/{id}/mini-site")
-    public ResponseEntity<BusinessProfileDetailDto> toggleMiniSite(@PathVariable UUID id) {
-        return ResponseEntity.ok(businessProfileService.toggleMiniSite(id));
     }
 
     @PostMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

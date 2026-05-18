@@ -17,14 +17,6 @@ resources:
         contributor: denied
         editor: denied
         admin: allowed
-      - operation: Toggle mini-site on own claimed business
-        contributor: allowed
-        editor: denied
-        admin: allowed
-      - operation: Toggle mini-site on unclaimed business
-        contributor: denied
-        editor: denied
-        admin: allowed
       - operation: Create new business (editor/admin only — unclaimed registry)
         contributor: denied
         editor: allowed

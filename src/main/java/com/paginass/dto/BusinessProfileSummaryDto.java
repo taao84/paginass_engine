@@ -13,7 +13,6 @@ public record BusinessProfileSummaryDto(
         List<String> tags,
         Map<String, String> contactInfo,
         double score,
-        boolean miniSiteEnabled,
         boolean isClaimed,
         boolean deliversToHome
 ) {}

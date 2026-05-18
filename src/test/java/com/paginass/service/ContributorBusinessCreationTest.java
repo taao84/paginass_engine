@@ -100,7 +100,6 @@ class ContributorBusinessCreationTest {
         assertThat(saved.getBizType()).isEqualTo(BusinessType.INFORMAL);
         assertThat(saved.isClaimed()).isTrue();
         assertThat(saved.getOwnerId()).isEqualTo(contributor.getId());
-        assertThat(saved.isMiniSiteEnabled()).isFalse();
         assertThat(result).isNotNull();
     }
 
@@ -120,7 +119,6 @@ class ContributorBusinessCreationTest {
         assertThat(saved.getBizType()).isEqualTo(BusinessType.GIG);
         assertThat(saved.isClaimed()).isTrue();
         assertThat(saved.getOwnerId()).isEqualTo(contributor.getId());
-        assertThat(saved.isMiniSiteEnabled()).isFalse();
     }
 
     @Test

@@ -31,6 +31,7 @@ import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -213,7 +214,6 @@ public class BusinessProfileService {
         profile.setLatitude(request.latitude());
         profile.setLongitude(request.longitude());
         profile.setClaimed(true);
-        profile.setMiniSiteEnabled(false);
 
         return toDetailDto(businessProfileRepository.save(profile));
     }
@@ -225,12 +225,6 @@ public class BusinessProfileService {
                 .stream()
                 .map(this::toDetailDto)
                 .toList();
-    }
-
-    @PreAuthorize("hasRole('ADMIN') or @bizAuth.isOwnerOfClaimed(#profileId)")
-    @Transactional(readOnly = true)
-    public BusinessProfileDetailDto getProfileByOwner(UUID profileId) {
-        return toDetailDto(findProfileOrThrow(profileId));
     }
 
     @Transactional(readOnly = true)
@@ -281,23 +275,10 @@ public class BusinessProfileService {
         return toDetailDto(saved);
     }
 
-    @PreAuthorize("""
-            hasRole('ADMIN') or
-            @bizAuth.isOwnerOfClaimed(#businessId)
-            """)
-    public BusinessProfileDetailDto toggleMiniSite(UUID businessId) {
-        BusinessProfile profile = findProfileOrThrow(businessId);
-        profile.setMiniSiteEnabled(!profile.isMiniSiteEnabled());
-        return toDetailDto(businessProfileRepository.save(profile));
-    }
-
     @Transactional(readOnly = true)
     public BusinessMiniSiteDto getMiniSiteBySlug(String slug) {
         BusinessProfile profile = businessProfileRepository.findBySlugAndIsActiveTrue(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mini site not found"));
-        if (!profile.isMiniSiteEnabled()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mini site not found");
-        }
         return toMiniSiteDto(profile);
     }
 
@@ -482,6 +463,7 @@ public class BusinessProfileService {
         boolean hasPendingClaim = businessClaimRepository
                 .existsByBusinessIdAndStatus(profile.getId(), ClaimStatus.PENDING);
         long likeCount = businessLikeService.getLikeCount(profile.getId());
+        boolean isOwner = resolveIsOwner(profile.getOwnerId());
         return new BusinessMiniSiteDto(
                 profile.getId(),
                 profile.getName(),
@@ -490,14 +472,27 @@ public class BusinessProfileService {
                 profile.getContactInfo(),
                 toPublicUrls(profile.getImageUrls()),
                 profile.getTags() != null ? profile.getTags() : List.of(),
-                profile.isMiniSiteEnabled(),
                 profile.isClaimed(),
                 hasPendingClaim,
                 profile.isDeliversToHome(),
                 profile.getLatitude(),
                 profile.getLongitude(),
-                likeCount
+                likeCount,
+                isOwner
         );
+    }
+
+    private boolean resolveIsOwner(UUID ownerId) {
+        if (ownerId == null) return false;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            return false;
+        }
+        String email = auth.getPrincipal() instanceof UserDetails ud
+                ? ud.getUsername() : auth.getName();
+        return userRepository.findByEmail(email)
+                .map(u -> ownerId.equals(u.getId()))
+                .orElse(false);
     }
 
     private BusinessProfile findProfileOrThrow(UUID profileId) {
@@ -515,13 +510,13 @@ public class BusinessProfileService {
                 p.getContactInfo(),
                 p.getTags(),
                 toPublicUrls(p.getImageUrls()),
-                p.isMiniSiteEnabled(),
                 p.isActive(),
                 p.isClaimed(),
                 p.getCreatedBy(),
                 p.isDeliversToHome(),
                 p.getLatitude(),
-                p.getLongitude()
+                p.getLongitude(),
+                resolveIsOwner(p.getOwnerId())
         );
     }
 
@@ -568,7 +563,6 @@ public class BusinessProfileService {
                     tags,
                     contactInfo,
                     p.getScore() != null ? p.getScore() : 0.0,
-                    Boolean.TRUE.equals(p.getMiniSiteEnabled()),
                     Boolean.TRUE.equals(p.getIsClaimed()),
                     Boolean.TRUE.equals(p.getDeliversToHome()));
         } catch (Exception e) {

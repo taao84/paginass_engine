@@ -65,9 +65,6 @@ public class BusinessProfile {
     @Column(name = "is_active")
     private boolean isActive = true;
 
-    @Column(name = "mini_site_enabled", nullable = false)
-    private boolean miniSiteEnabled = false;
-
     @Column(name = "delivers_to_home", nullable = false)
     private boolean deliversToHome = false;
 

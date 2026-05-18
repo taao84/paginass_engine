@@ -12,11 +12,11 @@ public record BusinessMiniSiteDto(
         Map<String, String> contactInfo,
         List<String> imageUrls,
         List<String> tags,
-        boolean miniSiteEnabled,
         boolean isClaimed,
         boolean hasPendingClaim,
         boolean deliversToHome,
         Double latitude,
         Double longitude,
-        long likeCount
+        long likeCount,
+        boolean isOwner
 ) {}

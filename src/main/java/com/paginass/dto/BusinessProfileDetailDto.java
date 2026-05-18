@@ -13,11 +13,11 @@ public record BusinessProfileDetailDto(
         Map<String, String> contactInfo,
         List<String> tags,
         List<String> imageUrls,
-        boolean miniSiteEnabled,
         boolean isActive,
         boolean isClaimed,
         UUID createdBy,
         boolean deliversToHome,
         Double latitude,
-        Double longitude
+        Double longitude,
+        boolean isOwner
 ) {}

@@ -39,6 +39,8 @@ out/
 ### Uploads ###
 uploads/
 
+scripts/
+
 ### Secrets ###
 .env
 .env.local
