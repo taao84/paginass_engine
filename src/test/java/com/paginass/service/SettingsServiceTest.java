@@ -86,7 +86,7 @@ class SettingsServiceTest {
     @Test
     void uploadBanner_validFile_savesHistoryEntryAndSetting() throws IOException {
         MockMultipartFile file = new MockMultipartFile("file", "banner.jpg", "image/jpeg", new byte[100]);
-        when(storageService.saveFile(anyString(), any())).thenReturn("banner/new.jpg");
+        when(storageService.saveFile(anyString(), any(), anyString())).thenReturn("banner/new.jpg");
         when(bannerHistoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(bannerHistoryRepository.findAllByOrderByUploadedAtDesc()).thenReturn(List.of());
         when(appSettingRepository.findById("banner")).thenReturn(Optional.empty());
@@ -104,7 +104,7 @@ class SettingsServiceTest {
     @Test
     void uploadBanner_thirteenthUpload_prunesOldestEntry() throws IOException {
         MockMultipartFile file = new MockMultipartFile("file", "new.jpg", "image/jpeg", new byte[100]);
-        when(storageService.saveFile(anyString(), any())).thenReturn("banner/new.jpg");
+        when(storageService.saveFile(anyString(), any(), anyString())).thenReturn("banner/new.jpg");
         when(bannerHistoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(appSettingRepository.findById("banner")).thenReturn(Optional.empty());
         when(appSettingRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));

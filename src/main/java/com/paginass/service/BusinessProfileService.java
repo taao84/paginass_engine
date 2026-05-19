@@ -3,6 +3,7 @@ package com.paginass.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.paginass.config.FeatureKey;
+import com.paginass.config.StorageConstants;
 import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.BusinessProfileDetailDto;
@@ -62,7 +63,7 @@ public class BusinessProfileService {
     private static final int PAGE_SIZE = 10;
     private static final int DIRECTORY_PAGE_SIZE = 50;
     private static final int MAX_IMAGES = 5;
-    private static final long MAX_IMAGE_BYTES = 4 * 1024 * 1024L;
+    private static final long MAX_IMAGE_BYTES = StorageConstants.MAX_BUSINESS_IMAGE_BYTES;
 
     private final BusinessProfileRepository businessProfileRepository;
     private final BusinessClaimRepository businessClaimRepository;
