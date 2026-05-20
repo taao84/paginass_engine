@@ -12,32 +12,27 @@ import java.util.UUID;
 
 public interface AdvertisementRepository extends JpaRepository<Advertisement, UUID> {
 
-    List<Advertisement> findAllByExpiresAtAfterOrderByCreatedAtDesc(Instant now);
+    List<Advertisement> findAllByActiveTrueOrderByCreatedAtDesc();
 
-    List<Advertisement> findAllByCategoryAndExpiresAtAfterOrderByCreatedAtDesc(AdCategory category, Instant now);
+    List<Advertisement> findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(AdCategory category);
 
-    List<Advertisement> findAllByOwnerIdAndExpiresAtAfterOrderByCreatedAtDesc(UUID ownerId, Instant now);
+    List<Advertisement> findAllByOwnerIdAndActiveTrueOrderByCreatedAtDesc(UUID ownerId);
 
     @Query(value = """
             SELECT * FROM advertisements
-            WHERE expires_at > :now
+            WHERE active = true
               AND tags @> CAST(:tag AS jsonb)
             ORDER BY created_at DESC
             """, nativeQuery = true)
-    List<Advertisement> searchByTagAndActive(@Param("tag") String tagJson, @Param("now") Instant now);
+    List<Advertisement> searchByTagAndActive(@Param("tag") String tagJson);
 
     @Query(value = """
             SELECT * FROM advertisements
-            WHERE expires_at > :now
+            WHERE active = true
               AND (title ILIKE :kw OR content ILIKE :kw)
             ORDER BY created_at DESC
             """, nativeQuery = true)
-    List<Advertisement> searchByKeywordAndActive(@Param("kw") String keyword, @Param("now") Instant now);
+    List<Advertisement> searchByKeywordAndActive(@Param("kw") String keyword);
 
-    @Query(value = """
-            SELECT * FROM advertisements
-            WHERE expires_at < :now
-              AND jsonb_array_length(image_urls) > 0
-            """, nativeQuery = true)
-    List<Advertisement> findExpiredAdsWithImages(@Param("now") Instant now);
+    List<Advertisement> findAllByActiveTrueAndExpiresAtBefore(Instant now);
 }

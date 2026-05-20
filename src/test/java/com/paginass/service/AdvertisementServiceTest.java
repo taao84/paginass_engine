@@ -90,23 +90,22 @@ class AdvertisementServiceTest {
     // --- getActiveAdvertisements ---
 
     @Test
-    void getActiveAdvertisements_excludesExpiredAds() {
+    void getActiveAdvertisements_returnsActiveAds() {
         Advertisement active = buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS));
-        when(advertisementRepository.findAllByExpiresAtAfterOrderByCreatedAtDesc(any()))
+        when(advertisementRepository.findAllByActiveTrueOrderByCreatedAtDesc())
                 .thenReturn(List.of(active));
         when(userRepository.findAllById(any())).thenReturn(List.of(owner));
 
         List<AdvertisementSummaryDto> result = advertisementService.getActiveAdvertisements(null, null);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).expiresAt()).isAfter(Instant.now());
     }
 
     @Test
     void getActiveAdvertisements_filtersByCategory() {
         Advertisement jobAd = buildAd(AdCategory.JOB, owner, Instant.now().plus(5, ChronoUnit.DAYS));
-        when(advertisementRepository.findAllByCategoryAndExpiresAtAfterOrderByCreatedAtDesc(
-                eq(AdCategory.JOB), any())).thenReturn(List.of(jobAd));
+        when(advertisementRepository.findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(eq(AdCategory.JOB)))
+                .thenReturn(List.of(jobAd));
         when(userRepository.findAllById(any())).thenReturn(List.of(owner));
 
         List<AdvertisementSummaryDto> result = advertisementService.getActiveAdvertisements(AdCategory.JOB, null);
@@ -118,14 +117,26 @@ class AdvertisementServiceTest {
     // --- getAdvertisementById ---
 
     @Test
-    void getAdvertisementById_expiredAd_throws404() {
-        Advertisement expired = buildAd(AdCategory.SALE, owner, Instant.now().minus(1, ChronoUnit.DAYS));
-        when(advertisementRepository.findById(expired.getId())).thenReturn(Optional.of(expired));
+    void getAdvertisementById_inactiveAd_throws404() {
+        Advertisement inactive = buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS));
+        inactive.setActive(false);
+        when(advertisementRepository.findById(inactive.getId())).thenReturn(Optional.of(inactive));
 
-        assertThatThrownBy(() -> advertisementService.getAdvertisementById(expired.getId()))
+        assertThatThrownBy(() -> advertisementService.getAdvertisementById(inactive.getId()))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(NOT_FOUND);
+    }
+
+    @Test
+    void getAdvertisementById_activeAd_returnsDto() {
+        Advertisement active = buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS));
+        when(advertisementRepository.findById(active.getId())).thenReturn(Optional.of(active));
+        when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+
+        AdvertisementResponseDto result = advertisementService.getAdvertisementById(active.getId());
+
+        assertThat(result.id()).isEqualTo(active.getId());
     }
 
     // --- addImages ---

@@ -92,14 +92,13 @@ public class AdvertisementService {
 
     @Transactional(readOnly = true)
     public List<AdvertisementSummaryDto> getActiveAdvertisements(AdCategory category, String search) {
-        Instant now = Instant.now();
         List<Advertisement> ads;
         if (search != null && !search.isBlank()) {
-            ads = advertisementRepository.searchByKeywordAndActive("%" + search.trim() + "%", now);
+            ads = advertisementRepository.searchByKeywordAndActive("%" + search.trim() + "%");
         } else if (category != null) {
-            ads = advertisementRepository.findAllByCategoryAndExpiresAtAfterOrderByCreatedAtDesc(category, now);
+            ads = advertisementRepository.findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(category);
         } else {
-            ads = advertisementRepository.findAllByExpiresAtAfterOrderByCreatedAtDesc(now);
+            ads = advertisementRepository.findAllByActiveTrueOrderByCreatedAtDesc();
         }
         return toSummaryDtos(ads);
     }
@@ -107,8 +106,8 @@ public class AdvertisementService {
     @Transactional(readOnly = true)
     public AdvertisementResponseDto getAdvertisementById(UUID id) {
         Advertisement ad = loadAdOrThrow(id);
-        if (ad.getExpiresAt() != null && ad.getExpiresAt().isBefore(Instant.now())) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Advertisement not found or expired");
+        if (!ad.isActive()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Advertisement not found");
         }
         return toResponseDto(ad, loadOwnerOrThrow(ad.getOwnerId()));
     }
@@ -117,7 +116,7 @@ public class AdvertisementService {
     public List<AdvertisementSummaryDto> getMyAdvertisements() {
         User current = resolveCurrentUser();
         return advertisementRepository
-                .findAllByOwnerIdAndExpiresAtAfterOrderByCreatedAtDesc(current.getId(), Instant.now())
+                .findAllByOwnerIdAndActiveTrueOrderByCreatedAtDesc(current.getId())
                 .stream()
                 .map(ad -> toSummaryDto(ad, current))
                 .toList();

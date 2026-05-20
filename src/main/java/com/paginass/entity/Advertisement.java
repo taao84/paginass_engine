@@ -63,6 +63,9 @@ public class Advertisement {
     @Column(name = "expires_at")
     private Instant expiresAt;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

@@ -72,8 +72,7 @@ class AdvertisementRepositoryIT {
         // Previously failed: "operator does not exist: ad_category = character varying"
         // Fixed by adding @JdbcTypeCode(SqlTypes.NAMED_ENUM) to Advertisement.category
         assertThatNoException().isThrownBy(() ->
-                advertisementRepository.findAllByCategoryAndExpiresAtAfterOrderByCreatedAtDesc(
-                        AdCategory.SALE, Instant.now()));
+                advertisementRepository.findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(AdCategory.SALE));
     }
 
     @Test
@@ -82,7 +81,7 @@ class AdvertisementRepositoryIT {
         advertisementRepository.save(buildAd(AdCategory.JOB, Instant.now().plus(30, ChronoUnit.DAYS)));
 
         List<Advertisement> result = advertisementRepository
-                .findAllByCategoryAndExpiresAtAfterOrderByCreatedAtDesc(AdCategory.SALE, Instant.now());
+                .findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(AdCategory.SALE);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getCategory()).isEqualTo(AdCategory.SALE);
@@ -91,32 +90,40 @@ class AdvertisementRepositoryIT {
     // --- expiry filtering ---
 
     @Test
-    void findAllActive_excludesExpiredAds() {
+    void findAllActive_excludesInactiveAds() {
         advertisementRepository.save(buildAd(AdCategory.SALE, Instant.now().plus(10, ChronoUnit.DAYS)));
-        advertisementRepository.save(buildAd(AdCategory.JOB, Instant.now().minus(1, ChronoUnit.DAYS)));
+        Advertisement inactive = buildAd(AdCategory.JOB, Instant.now().plus(10, ChronoUnit.DAYS));
+        inactive.setActive(false);
+        advertisementRepository.save(inactive);
 
         List<Advertisement> result = advertisementRepository
-                .findAllByExpiresAtAfterOrderByCreatedAtDesc(Instant.now());
+                .findAllByActiveTrueOrderByCreatedAtDesc();
 
         assertThat(result).hasSize(1);
+        assertThat(result.get(0).getCategory()).isEqualTo(AdCategory.SALE);
     }
 
     @Test
-    void findExpiredAdsWithImages_returnsOnlyExpiredWithImages() {
+    void findAllByActiveTrueAndExpiresAtBefore_returnsAllExpiredActiveAds() {
         Advertisement expiredWithImage = buildAd(AdCategory.SALE, Instant.now().minus(1, ChronoUnit.DAYS));
         expiredWithImage.getImageUrls().add("ads/img.jpg");
         advertisementRepository.save(expiredWithImage);
 
-        advertisementRepository.save(buildAd(AdCategory.JOB, Instant.now().minus(1, ChronoUnit.DAYS)));
+        Advertisement expiredNoImage = buildAd(AdCategory.JOB, Instant.now().minus(1, ChronoUnit.DAYS));
+        advertisementRepository.save(expiredNoImage);
 
-        Advertisement activeWithImage = buildAd(AdCategory.SALE, Instant.now().plus(10, ChronoUnit.DAYS));
-        activeWithImage.getImageUrls().add("ads/active.jpg");
-        advertisementRepository.save(activeWithImage);
+        Advertisement notExpired = buildAd(AdCategory.SALE, Instant.now().plus(10, ChronoUnit.DAYS));
+        advertisementRepository.save(notExpired);
 
-        List<Advertisement> result = advertisementRepository.findExpiredAdsWithImages(Instant.now());
+        Advertisement alreadyInactive = buildAd(AdCategory.SALE, Instant.now().minus(1, ChronoUnit.DAYS));
+        alreadyInactive.setActive(false);
+        advertisementRepository.save(alreadyInactive);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getId()).isEqualTo(expiredWithImage.getId());
+        List<Advertisement> result = advertisementRepository.findAllByActiveTrueAndExpiresAtBefore(Instant.now());
+
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(Advertisement::getId)
+                .containsExactlyInAnyOrder(expiredWithImage.getId(), expiredNoImage.getId());
     }
 
     // --- dirty-tracking / transaction fix ---
