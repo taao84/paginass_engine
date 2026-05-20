@@ -61,7 +61,14 @@ public class AdvertisementService {
         ad.setPrice(request.price());
         ad.setEventDate(request.eventDate());
         ad.setTags(request.tags() != null ? request.tags() : new ArrayList<>());
-        ad.setExpiresAt(Instant.now().plus(AD_EXPIRY_DAYS, ChronoUnit.DAYS));
+        if (request.category() == AdCategory.EVENT) {
+            if (request.eventDate() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "EVENT advertisements require an event date");
+            }
+            ad.setExpiresAt(request.eventDate().truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS));
+        } else {
+            ad.setExpiresAt(Instant.now().plus(AD_EXPIRY_DAYS, ChronoUnit.DAYS));
+        }
         advertisementRepository.save(ad);
         return toResponseDto(ad, owner);
     }

@@ -87,6 +87,38 @@ class AdvertisementServiceTest {
         assertThat(daysUntilExpiry).isBetween(29L, 30L);
     }
 
+    @Test
+    void createAdvertisement_eventCategory_expiresAtEndOfEventDay() {
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+        when(advertisementRepository.save(any())).thenAnswer(inv -> {
+            Advertisement ad = inv.getArgument(0);
+            ad.setId(UUID.randomUUID());
+            return ad;
+        });
+
+        Instant eventDate = Instant.now().plus(7, ChronoUnit.DAYS);
+        AdvertisementRequestDto request = new AdvertisementRequestDto(
+                AdCategory.EVENT, "Concert", "Description", null, eventDate, List.of());
+
+        AdvertisementResponseDto result = advertisementService.createAdvertisement(request);
+
+        Instant expectedExpiry = eventDate.truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS);
+        assertThat(result.expiresAt()).isEqualTo(expectedExpiry);
+    }
+
+    @Test
+    void createAdvertisement_eventCategory_noEventDate_throws400() {
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+
+        AdvertisementRequestDto request = new AdvertisementRequestDto(
+                AdCategory.EVENT, "Concert", "Description", null, null, List.of());
+
+        assertThatThrownBy(() -> advertisementService.createAdvertisement(request))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(BAD_REQUEST);
+    }
+
     // --- getActiveAdvertisements ---
 
     @Test
