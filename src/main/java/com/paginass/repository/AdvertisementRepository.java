@@ -35,4 +35,16 @@ public interface AdvertisementRepository extends JpaRepository<Advertisement, UU
     List<Advertisement> searchByKeywordAndActive(@Param("kw") String keyword);
 
     List<Advertisement> findAllByActiveTrueAndExpiresAtBefore(Instant now);
+
+    @Query(value = """
+            SELECT a.id        AS id,
+                   a.title     AS title,
+                   a.category  AS category
+            FROM   advertisements a
+            WHERE  a.active = true
+              AND  a.title ILIKE :q
+            ORDER  BY a.created_at DESC
+            LIMIT  10
+            """, nativeQuery = true)
+    List<HighlightableAdProjection> searchActiveByTitle(@Param("q") String q);
 }

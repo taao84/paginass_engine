@@ -1,10 +1,14 @@
 package com.paginass.service;
 
 import com.paginass.dto.CreateHighlightRequestDto;
+import com.paginass.dto.HighlightableAdDto;
+import com.paginass.dto.HighlightableBusinessDto;
 import com.paginass.dto.HighlightCardDto;
 import com.paginass.dto.HighlightSummaryDto;
+import com.paginass.entity.AdCategory;
 import com.paginass.entity.Advertisement;
 import com.paginass.entity.BusinessProfile;
+import com.paginass.entity.BusinessType;
 import com.paginass.entity.Highlight;
 import com.paginass.entity.HighlightType;
 import com.paginass.entity.User;
@@ -73,6 +77,26 @@ public class HighlightService {
         highlight.setEnabled(false);
     }
 
+    @Transactional(readOnly = true)
+    public List<HighlightableBusinessDto> searchBusinesses(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        return businessProfileRepository.searchActiveByName("%" + query.trim() + "%").stream()
+                .map(p -> new HighlightableBusinessDto(p.getId(), p.getName(), badge(BusinessType.valueOf(p.getBizType()))))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<HighlightableAdDto> searchAds(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        return advertisementRepository.searchActiveByTitle("%" + query.trim() + "%").stream()
+                .map(p -> new HighlightableAdDto(p.getId(), p.getTitle(), badge(AdCategory.valueOf(p.getCategory()))))
+                .toList();
+    }
+
     @Transactional
     public int expireHighlights() {
         List<Highlight> expired = highlightRepository.findAllByEnabledTrueAndExpiresAtBefore(Instant.now());
@@ -107,11 +131,7 @@ public class HighlightService {
         String thumbnailUrl = business.getImageUrls().isEmpty()
                 ? null
                 : storageService.toPublicUrl(business.getImageUrls().get(0));
-        String badge = switch (business.getBizType()) {
-            case BRICK_AND_MORTAR -> "Negocio";
-            case INFORMAL -> "Informal";
-            case GIG -> "Servicio";
-        };
+        String badge = badge(business.getBizType());
         String description = business.getDescription() != null
                 ? business.getDescription()
                 : "";
@@ -130,11 +150,7 @@ public class HighlightService {
         String thumbnailUrl = ad.getImageUrls().isEmpty()
                 ? null
                 : storageService.toPublicUrl(ad.getImageUrls().get(0));
-        String badge = switch (ad.getCategory()) {
-            case SALE -> "Venta";
-            case JOB -> "Empleo";
-            case EVENT -> "Evento";
-        };
+        String badge = badge(ad.getCategory());
         return new HighlightCardDto(
                 highlight.getId(),
                 HighlightType.ADVERTISEMENT,
@@ -161,19 +177,11 @@ public class HighlightService {
     private String resolveBadge(Highlight highlight) {
         if (highlight.getType() == HighlightType.BUSINESS) {
             return businessProfileRepository.findById(highlight.getReferenceId())
-                    .map(b -> switch (b.getBizType()) {
-                        case BRICK_AND_MORTAR -> "Negocio";
-                        case INFORMAL -> "Informal";
-                        case GIG -> "Servicio";
-                    })
+                    .map(b -> badge(b.getBizType()))
                     .orElse("");
         } else {
             return advertisementRepository.findById(highlight.getReferenceId())
-                    .map(a -> switch (a.getCategory()) {
-                        case SALE -> "Venta";
-                        case JOB -> "Empleo";
-                        case EVENT -> "Evento";
-                    })
+                    .map(a -> badge(a.getCategory()))
                     .orElse("");
         }
     }
@@ -187,6 +195,22 @@ public class HighlightService {
                 highlight.getExpiresAt(),
                 highlight.isEnabled()
         );
+    }
+
+    private String badge(BusinessType type) {
+        return switch (type) {
+            case BRICK_AND_MORTAR -> "Negocio";
+            case INFORMAL         -> "Informal";
+            case GIG              -> "Servicio";
+        };
+    }
+
+    private String badge(AdCategory category) {
+        return switch (category) {
+            case SALE  -> "Venta";
+            case JOB   -> "Empleo";
+            case EVENT -> "Evento";
+        };
     }
 
     private User resolveCurrentUser() {

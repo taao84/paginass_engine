@@ -1,6 +1,8 @@
 package com.paginass.controller;
 
 import com.paginass.dto.CreateHighlightRequestDto;
+import com.paginass.dto.HighlightableAdDto;
+import com.paginass.dto.HighlightableBusinessDto;
 import com.paginass.dto.HighlightSummaryDto;
 import com.paginass.service.HighlightService;
 import jakarta.validation.Valid;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -40,5 +43,17 @@ public class AdminHighlightController {
     public ResponseEntity<Void> disableHighlight(@PathVariable UUID id) {
         highlightService.disableHighlight(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search/businesses")
+    public ResponseEntity<List<HighlightableBusinessDto>> searchBusinesses(
+            @RequestParam(defaultValue = "") String q) {
+        return ResponseEntity.ok(highlightService.searchBusinesses(q));
+    }
+
+    @GetMapping("/search/ads")
+    public ResponseEntity<List<HighlightableAdDto>> searchAds(
+            @RequestParam(defaultValue = "") String q) {
+        return ResponseEntity.ok(highlightService.searchAds(q));
     }
 }

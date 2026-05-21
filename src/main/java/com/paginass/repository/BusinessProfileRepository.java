@@ -205,4 +205,16 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
             ORDER  BY cnt DESC, t.tag ASC
             """, nativeQuery = true)
     List<TagCountProjection> findAllTagsWithCount();
+
+    @Query(value = """
+            SELECT b.id        AS id,
+                   b.name      AS name,
+                   b.biz_type  AS bizType
+            FROM   business_profiles b
+            WHERE  b.is_active = true
+              AND  b.name ILIKE :q
+            ORDER  BY b.name ASC
+            LIMIT  10
+            """, nativeQuery = true)
+    List<HighlightableBusinessProjection> searchActiveByName(@Param("q") String q);
 }

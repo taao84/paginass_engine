@@ -1,9 +1,13 @@
 package com.paginass.service;
 
 import com.paginass.dto.CreateHighlightRequestDto;
+import com.paginass.dto.HighlightableAdDto;
+import com.paginass.dto.HighlightableBusinessDto;
 import com.paginass.dto.HighlightCardDto;
 import com.paginass.dto.HighlightLifetime;
 import com.paginass.dto.HighlightSummaryDto;
+import com.paginass.repository.HighlightableAdProjection;
+import com.paginass.repository.HighlightableBusinessProjection;
 import com.paginass.entity.AdCategory;
 import com.paginass.entity.Advertisement;
 import com.paginass.entity.BusinessProfile;
@@ -286,6 +290,51 @@ class HighlightServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    // --- searchBusinesses ---
+
+    @Test
+    void searchBusinesses_returnsMatchingResults() {
+        HighlightableBusinessProjection proj = mockBusinessProjection(
+                activeBusiness.getId(), "Panadería La Esperanza", "BRICK_AND_MORTAR");
+        when(businessProfileRepository.searchActiveByName("%pana%")).thenReturn(List.of(proj));
+
+        List<HighlightableBusinessDto> result = highlightService.searchBusinesses("pana");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).name()).isEqualTo("Panadería La Esperanza");
+        assertThat(result.get(0).badge()).isEqualTo("Negocio");
+    }
+
+    @Test
+    void searchBusinesses_blankQueryReturnsEmpty() {
+        List<HighlightableBusinessDto> result = highlightService.searchBusinesses("   ");
+
+        assertThat(result).isEmpty();
+        verify(businessProfileRepository, never()).searchActiveByName(any());
+    }
+
+    // --- searchAds ---
+
+    @Test
+    void searchAds_returnsMatchingResults() {
+        HighlightableAdProjection proj = mockAdProjection(activeAd.getId(), "Se vende bicicleta", "SALE");
+        when(advertisementRepository.searchActiveByTitle("%bici%")).thenReturn(List.of(proj));
+
+        List<HighlightableAdDto> result = highlightService.searchAds("bici");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).title()).isEqualTo("Se vende bicicleta");
+        assertThat(result.get(0).badge()).isEqualTo("Venta");
+    }
+
+    @Test
+    void searchAds_blankQueryReturnsEmpty() {
+        List<HighlightableAdDto> result = highlightService.searchAds("");
+
+        assertThat(result).isEmpty();
+        verify(advertisementRepository, never()).searchActiveByTitle(any());
+    }
+
     // --- helpers ---
 
     private Highlight enabledBusinessHighlight(UUID referenceId) {
@@ -306,5 +355,21 @@ class HighlightServiceTest {
         h.setExpiresAt(Instant.now().plusSeconds(86400));
         h.setEnabled(true);
         return h;
+    }
+
+    private HighlightableBusinessProjection mockBusinessProjection(UUID id, String name, String bizType) {
+        return new HighlightableBusinessProjection() {
+            public UUID getId()      { return id; }
+            public String getName()  { return name; }
+            public String getBizType() { return bizType; }
+        };
+    }
+
+    private HighlightableAdProjection mockAdProjection(UUID id, String title, String category) {
+        return new HighlightableAdProjection() {
+            public UUID getId()         { return id; }
+            public String getTitle()    { return title; }
+            public String getCategory() { return category; }
+        };
     }
 }
