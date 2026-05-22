@@ -12,6 +12,7 @@ public final class FeatureKey {
     public static final String APP_NEWS                      = "app_news";
     public static final String SCHEDULER                     = "scheduler";
     public static final String HIGHLIGHTS                    = "highlights";
+    public static final String SOCIAL_SHARE                  = "social_share";
 
     private FeatureKey() {}
 }
