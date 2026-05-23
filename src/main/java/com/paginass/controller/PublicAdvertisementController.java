@@ -28,4 +28,9 @@ public class PublicAdvertisementController {
     public AdvertisementResponseDto getAd(@PathVariable UUID id) {
         return advertisementService.getAdvertisementById(id);
     }
+
+    @GetMapping("/business/{businessId}/events")
+    public List<AdvertisementSummaryDto> listBusinessEvents(@PathVariable UUID businessId) {
+        return advertisementService.getBusinessEvents(businessId);
+    }
 }

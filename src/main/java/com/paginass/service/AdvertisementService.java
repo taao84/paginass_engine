@@ -3,10 +3,13 @@ package com.paginass.service;
 import com.paginass.dto.AdvertisementRequestDto;
 import com.paginass.dto.AdvertisementResponseDto;
 import com.paginass.dto.AdvertisementSummaryDto;
+import com.paginass.dto.AdvertisementUpdateRequestDto;
 import com.paginass.entity.AdCategory;
 import com.paginass.entity.Advertisement;
 import com.paginass.entity.User;
+import com.paginass.entity.BusinessProfile;
 import com.paginass.repository.AdvertisementRepository;
+import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +45,9 @@ public class AdvertisementService {
 
     private final AdvertisementRepository advertisementRepository;
     private final UserRepository userRepository;
+    private final BusinessProfileRepository businessProfileRepository;
     private final StorageService storageService;
+    private final BusinessAuthorizationService businessAuthorizationService;
 
     // Self-injection so that calls to @Transactional methods within this class
     // go through the Spring proxy rather than bypassing it via `this`.
@@ -50,11 +55,17 @@ public class AdvertisementService {
     @Autowired
     private AdvertisementService self;
 
+    @PreAuthorize("(#request.businessId == null) || @bizAuth.isEditorOwnerOrAdmin(#request.businessId)")
     @Transactional
     public AdvertisementResponseDto createAdvertisement(AdvertisementRequestDto request) {
+        if (request.businessId() != null && request.category() != AdCategory.EVENT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Only EVENT advertisements can be linked to a business");
+        }
         User owner = resolveCurrentUser();
         Advertisement ad = new Advertisement();
         ad.setOwnerId(owner.getId());
+        ad.setBusinessId(request.businessId());
         ad.setCategory(request.category());
         ad.setTitle(request.title());
         ad.setContent(request.content());
@@ -71,6 +82,31 @@ public class AdvertisementService {
         }
         advertisementRepository.save(ad);
         return toResponseDto(ad, owner);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdvertisementSummaryDto> getBusinessEvents(UUID businessId) {
+        List<Advertisement> events = advertisementRepository
+                .findByBusinessIdAndCategoryAndActiveTrueOrderByEventDateAsc(businessId, AdCategory.EVENT);
+        return toSummaryDtos(events);
+    }
+
+    @PreAuthorize("@adAuth.isOwner(#id)")
+    @Transactional
+    public AdvertisementResponseDto updateAdvertisement(UUID id, AdvertisementUpdateRequestDto request) {
+        Advertisement ad = loadAdOrThrow(id);
+        if (ad.getCategory() == AdCategory.EVENT && request.eventDate() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "EVENT advertisements require an event date");
+        }
+        ad.setTitle(request.title());
+        ad.setContent(request.content());
+        ad.setPrice(request.price());
+        ad.setTags(request.tags() != null ? request.tags() : new ArrayList<>());
+        if (ad.getCategory() == AdCategory.EVENT) {
+            ad.setEventDate(request.eventDate());
+            ad.setExpiresAt(request.eventDate().truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS));
+        }
+        return toResponseDto(ad, loadOwnerOrThrow(ad.getOwnerId()));
     }
 
     @PreAuthorize("@adAuth.isOwner(#adId)")
@@ -125,7 +161,7 @@ public class AdvertisementService {
         return advertisementRepository
                 .findAllByOwnerIdAndActiveTrueOrderByCreatedAtDesc(current.getId())
                 .stream()
-                .map(ad -> toSummaryDto(ad, current))
+                .map(ad -> toSummaryDto(ad, current, null))
                 .toList();
     }
 
@@ -156,7 +192,18 @@ public class AdvertisementService {
         Set<UUID> ownerIds = ads.stream().map(Advertisement::getOwnerId).collect(Collectors.toSet());
         Map<UUID, User> ownerMap = userRepository.findAllById(ownerIds).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
-        return ads.stream().map(ad -> toSummaryDto(ad, ownerMap.get(ad.getOwnerId()))).toList();
+        Set<UUID> businessIds = ads.stream()
+                .map(Advertisement::getBusinessId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<UUID, BusinessProfile> businessMap = businessIds.isEmpty()
+                ? Map.of()
+                : businessProfileRepository.findAllById(businessIds).stream()
+                        .collect(Collectors.toMap(BusinessProfile::getId, Function.identity()));
+        return ads.stream()
+                .map(ad -> toSummaryDto(ad, ownerMap.get(ad.getOwnerId()),
+                        ad.getBusinessId() != null ? businessMap.get(ad.getBusinessId()) : null))
+                .toList();
     }
 
     private void validateImageCount(AdCategory category, int existing, int incoming) {
@@ -194,6 +241,9 @@ public class AdvertisementService {
     }
 
     private AdvertisementResponseDto toResponseDto(Advertisement ad, User owner) {
+        BusinessProfile business = ad.getBusinessId() != null
+                ? businessProfileRepository.findById(ad.getBusinessId()).orElse(null)
+                : null;
         return new AdvertisementResponseDto(
                 ad.getId(),
                 ad.getCategory(),
@@ -205,12 +255,15 @@ public class AdvertisementService {
                 toPublicUrls(ad.getImageUrls()),
                 owner.getFullName(),
                 owner.getId(),
+                ad.getBusinessId(),
+                business != null ? business.getName() : null,
+                business != null ? business.getSlug() : null,
                 ad.getCreatedAt(),
                 ad.getExpiresAt()
         );
     }
 
-    private AdvertisementSummaryDto toSummaryDto(Advertisement ad, User owner) {
+    private AdvertisementSummaryDto toSummaryDto(Advertisement ad, User owner, BusinessProfile business) {
         List<String> publicUrls = toPublicUrls(ad.getImageUrls());
         String firstImage = publicUrls.isEmpty() ? null : publicUrls.get(0);
         return new AdvertisementSummaryDto(
@@ -223,7 +276,10 @@ public class AdvertisementService {
                 firstImage,
                 ad.getExpiresAt(),
                 ad.getCreatedAt(),
-                owner.getFullName()
+                owner != null ? owner.getFullName() : null,
+                ad.getBusinessId(),
+                business != null ? business.getName() : null,
+                business != null ? business.getSlug() : null
         );
     }
 

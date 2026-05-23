@@ -3,6 +3,7 @@ package com.paginass.controller;
 import com.paginass.dto.AdvertisementRequestDto;
 import com.paginass.dto.AdvertisementResponseDto;
 import com.paginass.dto.AdvertisementSummaryDto;
+import com.paginass.dto.AdvertisementUpdateRequestDto;
 import com.paginass.service.AdvertisementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,13 @@ public class AdvertisementController {
     @GetMapping("/my")
     public List<AdvertisementSummaryDto> myAds() {
         return advertisementService.getMyAdvertisements();
+    }
+
+    @PutMapping("/{id}")
+    public AdvertisementResponseDto updateAd(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdvertisementUpdateRequestDto request) {
+        return advertisementService.updateAdvertisement(id, request);
     }
 
     @DeleteMapping("/{id}")

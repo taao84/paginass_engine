@@ -36,6 +36,12 @@ public interface AdvertisementRepository extends JpaRepository<Advertisement, UU
 
     List<Advertisement> findAllByActiveTrueAndExpiresAtBefore(Instant now);
 
+    List<Advertisement> findByBusinessIdAndCategoryAndActiveTrueAndEventDateAfterOrderByEventDateAsc(
+            UUID businessId, AdCategory category, Instant now);
+
+    List<Advertisement> findByBusinessIdAndCategoryAndActiveTrueOrderByEventDateAsc(
+            UUID businessId, AdCategory category);
+
     @Query(value = """
             SELECT a.id        AS id,
                    a.title     AS title,

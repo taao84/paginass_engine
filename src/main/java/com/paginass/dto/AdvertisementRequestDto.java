@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public record AdvertisementRequestDto(
         @NotNull AdCategory category,
@@ -14,5 +15,6 @@ public record AdvertisementRequestDto(
         @NotBlank String content,
         BigDecimal price,
         Instant eventDate,
-        List<String> tags
+        List<String> tags,
+        UUID businessId
 ) {}

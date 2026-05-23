@@ -18,6 +18,9 @@ public record AdvertisementResponseDto(
         List<String> imageUrls,
         String ownerName,
         UUID ownerId,
+        UUID businessId,
+        String businessName,
+        String businessSlug,
         Instant createdAt,
         Instant expiresAt
 ) {}

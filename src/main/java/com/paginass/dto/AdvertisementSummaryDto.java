@@ -17,5 +17,8 @@ public record AdvertisementSummaryDto(
         String firstImageUrl,
         Instant expiresAt,
         Instant createdAt,
-        String ownerName
+        String ownerName,
+        UUID businessId,
+        String businessName,
+        String businessSlug
 ) {}

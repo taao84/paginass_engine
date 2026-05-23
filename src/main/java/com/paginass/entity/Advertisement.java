@@ -57,6 +57,9 @@ public class Advertisement {
     @Column(name = "image_urls", columnDefinition = "jsonb")
     private List<String> imageUrls = new ArrayList<>();
 
+    @Column(name = "business_id")
+    private UUID businessId;
+
     @Column(name = "event_date")
     private Instant eventDate;
 

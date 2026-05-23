@@ -3,10 +3,12 @@ package com.paginass.service;
 import com.paginass.dto.AdvertisementRequestDto;
 import com.paginass.dto.AdvertisementResponseDto;
 import com.paginass.dto.AdvertisementSummaryDto;
+import com.paginass.dto.AdvertisementUpdateRequestDto;
 import com.paginass.entity.AdCategory;
 import com.paginass.entity.Advertisement;
 import com.paginass.entity.User;
 import com.paginass.repository.AdvertisementRepository;
+import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +36,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.HttpStatus.*;
 
@@ -42,7 +45,9 @@ class AdvertisementServiceTest {
 
     @Mock private AdvertisementRepository advertisementRepository;
     @Mock private UserRepository userRepository;
+    @Mock private BusinessProfileRepository businessProfileRepository;
     @Mock private StorageService storageService;
+    @Mock private BusinessAuthorizationService businessAuthorizationService;
 
     @InjectMocks
     private AdvertisementService advertisementService;
@@ -79,7 +84,7 @@ class AdvertisementServiceTest {
         });
 
         AdvertisementRequestDto request = new AdvertisementRequestDto(
-                AdCategory.SALE, "Test Sale", "Description", BigDecimal.valueOf(100), null, List.of());
+                AdCategory.SALE, "Test Sale", "Description", BigDecimal.valueOf(100), null, List.of(), null);
 
         AdvertisementResponseDto result = advertisementService.createAdvertisement(request);
 
@@ -98,7 +103,7 @@ class AdvertisementServiceTest {
 
         Instant eventDate = Instant.now().plus(7, ChronoUnit.DAYS);
         AdvertisementRequestDto request = new AdvertisementRequestDto(
-                AdCategory.EVENT, "Concert", "Description", null, eventDate, List.of());
+                AdCategory.EVENT, "Concert", "Description", null, eventDate, List.of(), null);
 
         AdvertisementResponseDto result = advertisementService.createAdvertisement(request);
 
@@ -111,7 +116,7 @@ class AdvertisementServiceTest {
         when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
 
         AdvertisementRequestDto request = new AdvertisementRequestDto(
-                AdCategory.EVENT, "Concert", "Description", null, null, List.of());
+                AdCategory.EVENT, "Concert", "Description", null, null, List.of(), null);
 
         assertThatThrownBy(() -> advertisementService.createAdvertisement(request))
                 .isInstanceOf(ResponseStatusException.class)
@@ -229,6 +234,105 @@ class AdvertisementServiceTest {
         verify(storageService).deleteFile("ads/img2.jpg");
     }
 
+    // --- updateAdvertisement ---
+
+    @Test
+    void updateAdvertisement_updatesFields() {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(30, ChronoUnit.DAYS));
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+        when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+
+        AdvertisementUpdateRequestDto request = new AdvertisementUpdateRequestDto(
+                "New Title", "New Content", BigDecimal.valueOf(50), null, List.of("tag1"));
+
+        AdvertisementResponseDto result = advertisementService.updateAdvertisement(ad.getId(), request);
+
+        assertThat(result.title()).isEqualTo("New Title");
+        assertThat(result.content()).isEqualTo("New Content");
+        assertThat(result.price()).isEqualByComparingTo(BigDecimal.valueOf(50));
+    }
+
+    @Test
+    void updateAdvertisement_eventCategoryWithoutDate_throws400() {
+        Advertisement ad = buildAd(AdCategory.EVENT, owner, Instant.now().plus(7, ChronoUnit.DAYS));
+        ad.setEventDate(Instant.now().plus(7, ChronoUnit.DAYS));
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+
+        AdvertisementUpdateRequestDto request = new AdvertisementUpdateRequestDto(
+                "Title", "Content", null, null, List.of());
+
+        assertThatThrownBy(() -> advertisementService.updateAdvertisement(ad.getId(), request))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(BAD_REQUEST);
+    }
+
+    // --- createAdvertisement with businessId (BREQ039) ---
+
+    @Test
+    void createAdvertisement_withBusinessId_nonEventCategory_throwsBadRequest() {
+        UUID businessId = UUID.randomUUID();
+
+        AdvertisementRequestDto request = new AdvertisementRequestDto(
+                AdCategory.SALE, "Job Ad", "Content", null, null, List.of(), businessId);
+
+        assertThatThrownBy(() -> advertisementService.createAdvertisement(request))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(BAD_REQUEST);
+    }
+
+    @Test
+    void createAdvertisement_withBusinessId_eventCategory_setsBusinessId() {
+        UUID businessId = UUID.randomUUID();
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+        when(advertisementRepository.save(any())).thenAnswer(inv -> {
+            Advertisement ad = inv.getArgument(0);
+            ad.setId(UUID.randomUUID());
+            return ad;
+        });
+
+        Instant eventDate = Instant.now().plus(7, ChronoUnit.DAYS);
+        AdvertisementRequestDto request = new AdvertisementRequestDto(
+                AdCategory.EVENT, "Business Concert", "Come join us", null, eventDate, List.of(), businessId);
+
+        AdvertisementResponseDto result = advertisementService.createAdvertisement(request);
+
+        assertThat(result.businessId()).isEqualTo(businessId);
+    }
+
+    // --- getBusinessEvents (BREQ039) ---
+
+    @Test
+    void getBusinessEvents_returnsAllActiveEvents() {
+        UUID businessId = UUID.randomUUID();
+        Advertisement future = buildEventAd(businessId, Instant.now().plus(3, ChronoUnit.DAYS));
+        Advertisement past   = buildEventAd(businessId, Instant.now().minus(1, ChronoUnit.DAYS));
+        when(advertisementRepository
+                .findByBusinessIdAndCategoryAndActiveTrueOrderByEventDateAsc(
+                        eq(businessId), eq(AdCategory.EVENT)))
+                .thenReturn(List.of(past, future));
+        when(userRepository.findAllById(any())).thenReturn(List.of(owner));
+
+        List<AdvertisementSummaryDto> result = advertisementService.getBusinessEvents(businessId);
+
+        assertThat(result).hasSize(2);
+        assertThat(result).allMatch(r -> businessId.equals(r.businessId()));
+    }
+
+    @Test
+    void getBusinessEvents_noEvents_returnsEmpty() {
+        UUID businessId = UUID.randomUUID();
+        when(advertisementRepository
+                .findByBusinessIdAndCategoryAndActiveTrueOrderByEventDateAsc(
+                        eq(businessId), eq(AdCategory.EVENT)))
+                .thenReturn(List.of());
+
+        List<AdvertisementSummaryDto> result = advertisementService.getBusinessEvents(businessId);
+
+        assertThat(result).isEmpty();
+    }
+
     // --- Helpers ---
 
     private Advertisement buildAd(AdCategory category, User owner, Instant expiresAt) {
@@ -242,6 +346,13 @@ class AdvertisementServiceTest {
         ad.setCreatedAt(Instant.now());
         ad.setImageUrls(new ArrayList<>());
         ad.setTags(new ArrayList<>());
+        return ad;
+    }
+
+    private Advertisement buildEventAd(UUID businessId, Instant eventDate) {
+        Advertisement ad = buildAd(AdCategory.EVENT, owner, eventDate.plus(1, ChronoUnit.DAYS));
+        ad.setBusinessId(businessId);
+        ad.setEventDate(eventDate);
         return ad;
     }
 

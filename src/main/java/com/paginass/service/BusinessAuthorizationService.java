@@ -31,6 +31,17 @@ public class BusinessAuthorizationService {
                 .orElse(false);
     }
 
+    public boolean isEditorOwnerOrAdmin(UUID businessId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) return true;
+        if (isOwnerOfClaimed(businessId)) return true;
+        boolean isEditor = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_EDITOR"));
+        return isEditor && isUnclaimed(businessId);
+    }
+
     private UUID currentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getPrincipal() instanceof UserDetails ud
