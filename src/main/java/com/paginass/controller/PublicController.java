@@ -1,13 +1,16 @@
 package com.paginass.controller;
 
+import com.paginass.config.FeatureKey;
+import com.paginass.dto.AppFeatureDto;
 import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.DirectoryPageDto;
+import com.paginass.dto.FeaturedProductDto;
 import com.paginass.dto.TagCloudItemDto;
-import com.paginass.config.FeatureKey;
-import com.paginass.dto.AppFeatureDto;
+import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.service.AppFeatureService;
 import com.paginass.service.BusinessProfileService;
+import com.paginass.service.FeaturedProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -26,6 +30,8 @@ public class PublicController {
 
     private final BusinessProfileService businessProfileService;
     private final AppFeatureService appFeatureService;
+    private final FeaturedProductService featuredProductService;
+    private final BusinessProfileRepository businessProfileRepository;
 
     @GetMapping("/features")
     public List<AppFeatureDto> getFeatures() {
@@ -77,6 +83,13 @@ public class PublicController {
     @GetMapping("/business/{slug}")
     public ResponseEntity<BusinessMiniSiteDto> getPublicBusiness(@PathVariable String slug) {
         return ResponseEntity.ok(businessProfileService.getPublicBusinessBySlug(slug));
+    }
+
+    @GetMapping("/business/{slug}/products")
+    public ResponseEntity<List<FeaturedProductDto>> getHighlightedBusinessProducts(@PathVariable String slug) {
+        var business = businessProfileRepository.findBySlugAndIsActiveTrue(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+        return ResponseEntity.ok(featuredProductService.getHighlightedBusinessProducts(business.getId()));
     }
 
     @GetMapping("/businesses/locations")

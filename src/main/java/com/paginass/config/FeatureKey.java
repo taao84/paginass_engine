@@ -14,6 +14,7 @@ public final class FeatureKey {
     public static final String HIGHLIGHTS                    = "highlights";
     public static final String SOCIAL_SHARE                  = "social_share";
     public static final String BUSINESS_EVENTS               = "business_events";
+    public static final String FEATURED_PRODUCTS             = "featured_products";
 
     private FeatureKey() {}
 }

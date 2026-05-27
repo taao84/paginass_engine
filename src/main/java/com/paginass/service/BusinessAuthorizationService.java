@@ -31,6 +31,14 @@ public class BusinessAuthorizationService {
                 .orElse(false);
     }
 
+    public boolean isOwnerOrAdmin(UUID businessId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) return true;
+        return isOwnerOfClaimed(businessId);
+    }
+
     public boolean isEditorOwnerOrAdmin(UUID businessId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isAdmin = auth.getAuthorities().stream()

@@ -157,3 +157,22 @@ resources:
         contributor: denied
         editor: denied
         admin: allowed
+
+  - name: Productos Destacados
+    rules:
+      - operation: View featured products on mini-site (public)
+        contributor: allowed
+        editor: allowed
+        admin: allowed
+      - operation: Add featured product to own business
+        contributor: allowed
+        editor: denied
+        admin: allowed
+      - operation: Delete featured product from own business
+        contributor: allowed
+        editor: denied
+        admin: allowed
+      - operation: Add or delete featured product on any business
+        contributor: denied
+        editor: denied
+        admin: allowed

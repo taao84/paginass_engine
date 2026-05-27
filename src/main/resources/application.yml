@@ -84,4 +84,4 @@ app:
       bucket: ${R2_BUCKET:}
   session:
     use-secure-cookie: true
-    same-site: None
+    same-site: Lax
