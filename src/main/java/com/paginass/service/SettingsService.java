@@ -16,11 +16,14 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class SettingsService {
+
+    private static final String ADMIN_NOTIFICATION_EMAIL_KEY = "admin_notification_email";
 
     private static final String BANNER_KEY = "banner";
     private static final String OVERLAY_COLOR_KEY = "banner_overlay_color";
@@ -41,6 +44,18 @@ public class SettingsService {
     private final AppSettingRepository appSettingRepository;
     private final BannerHistoryRepository bannerHistoryRepository;
     private final StorageService storageService;
+
+    @Transactional(readOnly = true)
+    public Optional<String> getAdminNotificationEmail() {
+        return appSettingRepository.findById(ADMIN_NOTIFICATION_EMAIL_KEY)
+                .map(AppSetting::getSettingValue)
+                .filter(v -> !v.isBlank());
+    }
+
+    @Transactional
+    public void updateAdminNotificationEmail(String email) {
+        saveGlobalSetting(ADMIN_NOTIFICATION_EMAIL_KEY, email != null ? email.strip() : "");
+    }
 
     @Transactional(readOnly = true)
     public BannerSettingDto getBannerSetting() {
@@ -138,6 +153,15 @@ public class SettingsService {
         AppSetting setting = appSettingRepository.findById(key).orElseGet(AppSetting::new);
         setting.setSettingKey(key);
         setting.setSettingValue(value);
+        setting.setUpdatedAt(OffsetDateTime.now());
+        appSettingRepository.save(setting);
+    }
+
+    private void saveGlobalSetting(String key, String value) {
+        AppSetting setting = appSettingRepository.findById(key).orElseGet(AppSetting::new);
+        setting.setSettingKey(key);
+        setting.setSettingValue(value);
+        setting.setGlobal(true);
         setting.setUpdatedAt(OffsetDateTime.now());
         appSettingRepository.save(setting);
     }

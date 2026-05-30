@@ -213,4 +213,27 @@ class AppNewsServiceTest {
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
+
+    @Test
+    void getPublishedById_existingPost_returnsDto() {
+        when(appNewsRepository.findById(sampleNews.getId())).thenReturn(Optional.of(sampleNews));
+        when(storageService.toPublicUrl(any())).thenReturn(null);
+
+        AppNewsDto result = appNewsService.getPublishedById(sampleNews.getId());
+
+        assertThat(result.id()).isEqualTo(sampleNews.getId());
+        assertThat(result.title()).isEqualTo("Test Title");
+        assertThat(result.description()).isEqualTo("Test description");
+    }
+
+    @Test
+    void getPublishedById_nonExistent_throwsNotFound() {
+        UUID randomId = UUID.randomUUID();
+        when(appNewsRepository.findById(randomId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appNewsService.getPublishedById(randomId))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
 }

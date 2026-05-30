@@ -3,6 +3,7 @@ package com.paginass.controller;
 import com.paginass.dto.BannerHistoryEntryDto;
 import com.paginass.dto.BannerOverlayRequestDto;
 import com.paginass.dto.BannerSettingDto;
+import com.paginass.dto.NotificationEmailDto;
 import com.paginass.service.SettingsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,18 @@ import java.util.UUID;
 public class SettingsController {
 
     private final SettingsService settingsService;
+
+    @GetMapping("/admin/settings/notification-email")
+    public ResponseEntity<NotificationEmailDto> getNotificationEmail() {
+        String email = settingsService.getAdminNotificationEmail().orElse("");
+        return ResponseEntity.ok(new NotificationEmailDto(email));
+    }
+
+    @PutMapping("/admin/settings/notification-email")
+    public ResponseEntity<Void> updateNotificationEmail(@RequestBody NotificationEmailDto request) {
+        settingsService.updateAdminNotificationEmail(request.email());
+        return ResponseEntity.noContent().build();
+    }
 
     @GetMapping("/public/settings/banner")
     public ResponseEntity<BannerSettingDto> getBanner() {

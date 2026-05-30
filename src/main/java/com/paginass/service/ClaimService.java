@@ -37,6 +37,7 @@ public class ClaimService {
     private final BusinessProfileRepository businessProfileRepository;
     private final UserRepository userRepository;
     private final MailService mailService;
+    private final SettingsService settingsService;
 
     @Autowired @Lazy
     private ClaimService self;
@@ -44,8 +45,17 @@ public class ClaimService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    @Transactional
     public ClaimResponseDto submitClaim(UUID businessId, User claimant) {
+        ClaimResponseDto dto = self.submitClaimTx(businessId, claimant);
+        settingsService.getAdminNotificationEmail().ifPresent(adminEmail -> {
+            String claimsUrl = frontendUrl + "/admin/claims";
+            mailService.sendNewClaimNotificationEmail(adminEmail, dto.claimantName(), dto.claimantEmail(), dto.businessName(), claimsUrl);
+        });
+        return dto;
+    }
+
+    @Transactional
+    public ClaimResponseDto submitClaimTx(UUID businessId, User claimant) {
         if (claimant.getRole() == UserRole.ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Admins cannot submit ownership claims");

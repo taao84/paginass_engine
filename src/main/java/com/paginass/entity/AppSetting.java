@@ -24,6 +24,9 @@ public class AppSetting {
     @Column(name = "setting_value")
     private String settingValue;
 
+    @Column(name = "is_global", nullable = false)
+    private boolean isGlobal;
+
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 }

@@ -102,4 +102,32 @@ public class SmtpMailService implements MailService {
     public void recoverSendClaimApprovedEmail(MailException e, String to, String claimantName, String businessName, String miniSiteUrl) {
         log.error("Failed to send claim approved email to {} after retries: {}", to, e.getMessage());
     }
+
+    @Override
+    @Retryable(
+        retryFor = MailException.class,
+        maxAttemptsExpression = "${app.mail.retry.max-attempts:2}",
+        backoff = @Backoff(delayExpression = "${app.mail.retry.delay-ms:1000}")
+    )
+    public void sendNewClaimNotificationEmail(String adminEmail, String claimantName, String claimantEmail, String businessName, String claimsQueueUrl) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailFrom);
+        message.setTo(adminEmail);
+        message.setSubject("Nueva solicitud de propiedad — Paginass");
+        message.setText(
+                "Se ha recibido una nueva solicitud de propiedad.\n\n" +
+                "Negocio: " + businessName + "\n" +
+                "Solicitante: " + claimantName + "\n" +
+                "Correo: " + claimantEmail + "\n\n" +
+                "Revisa la solicitud aquí:\n" +
+                claimsQueueUrl + "\n\n" +
+                "— Paginass"
+        );
+        mailSender.send(message);
+    }
+
+    @Recover
+    public void recoverSendNewClaimNotificationEmail(MailException e, String adminEmail, String claimantName, String claimantEmail, String businessName, String claimsQueueUrl) {
+        log.error("Failed to send new claim notification to {} after retries: {}", adminEmail, e.getMessage());
+    }
 }

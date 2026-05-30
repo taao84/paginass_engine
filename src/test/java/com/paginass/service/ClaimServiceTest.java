@@ -28,6 +28,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -40,6 +41,7 @@ class ClaimServiceTest {
     @Mock private BusinessProfileRepository businessProfileRepository;
     @Mock private UserRepository userRepository;
     @Mock private MailService mailService;
+    @Mock private SettingsService settingsService;
 
     @InjectMocks
     private ClaimService claimService;
@@ -157,6 +159,78 @@ class ClaimServiceTest {
         assertThat(claim.getResolvedAt()).isNotNull();
         assertThat(claim.getResolvedAt().getOffset()).isEqualTo(ZoneOffset.UTC);
         verify(mailService, never()).sendClaimApprovedEmail(any(), any(), any(), any());
+    }
+
+    @Test
+    void submitClaim_withEmailConfigured_sendsAdminNotification() {
+        UUID businessId = UUID.randomUUID();
+
+        BusinessProfile business = new BusinessProfile();
+        business.setId(businessId);
+        business.setName("Mi Negocio");
+        business.setSlug("mi-negocio");
+        business.setClaimed(false);
+
+        User claimant = new User();
+        claimant.setId(UUID.randomUUID());
+        claimant.setFullName("Juan Pérez");
+        claimant.setEmail("juan@example.com");
+        claimant.setRole(UserRole.CONTRIBUTOR);
+
+        BusinessClaim savedClaim = new BusinessClaim();
+        savedClaim.setBusinessId(businessId);
+        savedClaim.setClaimantId(claimant.getId());
+        savedClaim.setStatus(ClaimStatus.PENDING);
+
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(business));
+        when(businessClaimRepository.existsByBusinessIdAndClaimantIdAndStatus(
+                eq(businessId), eq(claimant.getId()), eq(ClaimStatus.PENDING))).thenReturn(false);
+        when(businessClaimRepository.save(any())).thenReturn(savedClaim);
+        when(userRepository.findById(claimant.getId())).thenReturn(Optional.of(claimant));
+        when(settingsService.getAdminNotificationEmail()).thenReturn(Optional.of("admin@paginass.com"));
+
+        claimService.submitClaim(businessId, claimant);
+
+        verify(mailService).sendNewClaimNotificationEmail(
+                eq("admin@paginass.com"),
+                eq("Juan Pérez"),
+                eq("juan@example.com"),
+                eq("Mi Negocio"),
+                eq("http://localhost:3000/admin/claims")
+        );
+    }
+
+    @Test
+    void submitClaim_withNoEmailConfigured_skipsAdminNotification() {
+        UUID businessId = UUID.randomUUID();
+
+        BusinessProfile business = new BusinessProfile();
+        business.setId(businessId);
+        business.setName("Mi Negocio");
+        business.setSlug("mi-negocio");
+        business.setClaimed(false);
+
+        User claimant = new User();
+        claimant.setId(UUID.randomUUID());
+        claimant.setFullName("Juan Pérez");
+        claimant.setEmail("juan@example.com");
+        claimant.setRole(UserRole.CONTRIBUTOR);
+
+        BusinessClaim savedClaim = new BusinessClaim();
+        savedClaim.setBusinessId(businessId);
+        savedClaim.setClaimantId(claimant.getId());
+        savedClaim.setStatus(ClaimStatus.PENDING);
+
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(business));
+        when(businessClaimRepository.existsByBusinessIdAndClaimantIdAndStatus(
+                eq(businessId), eq(claimant.getId()), eq(ClaimStatus.PENDING))).thenReturn(false);
+        when(businessClaimRepository.save(any())).thenReturn(savedClaim);
+        when(userRepository.findById(claimant.getId())).thenReturn(Optional.of(claimant));
+        when(settingsService.getAdminNotificationEmail()).thenReturn(Optional.empty());
+
+        claimService.submitClaim(businessId, claimant);
+
+        verify(mailService, never()).sendNewClaimNotificationEmail(anyString(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test

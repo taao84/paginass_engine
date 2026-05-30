@@ -42,6 +42,13 @@ public class AppNewsService {
     private final StorageService storageService;
 
     @Transactional(readOnly = true)
+    public AppNewsDto getPublishedById(UUID id) {
+        AppNews news = appNewsRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "News post not found"));
+        return toPublicDto(news);
+    }
+
+    @Transactional(readOnly = true)
     public AppNewsPageDto getPublished(int page) {
         int offset = page * PUBLIC_PAGE_SIZE;
         List<AppNews> rows = appNewsRepository.findAllPaged(PUBLIC_PAGE_SIZE, offset);

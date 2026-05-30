@@ -25,4 +25,9 @@ public class ConsoleMailService implements MailService {
     public void sendClaimApprovedEmail(String to, String claimantName, String businessName, String miniSiteUrl) {
         log.info("[DEV] Claim approved email for {} ({}) — business '{}' → {}", to, claimantName, businessName, miniSiteUrl);
     }
+
+    @Override
+    public void sendNewClaimNotificationEmail(String adminEmail, String claimantName, String claimantEmail, String businessName, String claimsQueueUrl) {
+        log.info("[DEV] New claim notification → {} | claimant: {} ({}) | business: '{}' | queue: {}", adminEmail, claimantName, claimantEmail, businessName, claimsQueueUrl);
+    }
 }
