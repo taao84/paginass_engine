@@ -32,7 +32,8 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
                        ts_rank(b.search_vector, to_tsquery('spanish', :prefixQuery))
                    )                                                                   AS score,
                    b.is_claimed                                                        AS isClaimed,
-                   b.delivers_to_home                                                  AS deliversToHome
+                   b.delivers_to_home                                                  AS deliversToHome,
+                   b.thumbnail_url                                                     AS thumbnailUrl
             FROM   business_profiles b
             WHERE  b.is_active = true
               AND  b.search_vector @@ (
@@ -70,7 +71,8 @@ public interface BusinessProfileRepository extends JpaRepository<BusinessProfile
                        ts_rank(b.search_vector_simple, to_tsquery('simple',            :prefixQuery))
                    )                                                                   AS score,
                    b.is_claimed                                                        AS isClaimed,
-                   b.delivers_to_home                                                  AS deliversToHome
+                   b.delivers_to_home                                                  AS deliversToHome,
+                   b.thumbnail_url                                                     AS thumbnailUrl
             FROM   business_profiles b
             WHERE  b.is_active = true
               AND  (

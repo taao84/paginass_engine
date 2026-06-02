@@ -11,4 +11,5 @@ public interface BusinessProfileSearchProjection {
     Double getScore();
     Boolean getIsClaimed();
     Boolean getDeliversToHome();
+    String getThumbnailUrl();
 }

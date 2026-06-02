@@ -14,5 +14,6 @@ public record BusinessProfileSummaryDto(
         Map<String, String> contactInfo,
         double score,
         boolean isClaimed,
-        boolean deliversToHome
+        boolean deliversToHome,
+        String thumbnailUrl
 ) {}

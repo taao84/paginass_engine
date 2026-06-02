@@ -55,9 +55,11 @@ public class BusinessProfile {
     @Column(name = "tags", columnDefinition = "jsonb", nullable = false)
     private List<String> tags = new ArrayList<>();
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "image_urls", columnDefinition = "jsonb", nullable = false)
-    private List<String> imageUrls = new ArrayList<>();
+    @Column(name = "banner_url")
+    private String bannerUrl;
+
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
 
     @Column(name = "is_claimed", nullable = false)
     private boolean isClaimed = false;

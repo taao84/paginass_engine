@@ -45,6 +45,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -145,7 +147,7 @@ class BusinessProfileServiceTest {
                 "tags", List.of("tag1", "tag2"),
                 "deliversToHome", true,
                 "contactInfo", Map.of("phones", "555-1234"),
-                "imageUrls", List.of()
+                "bannerUrl", "businesses/abc/banner/xyz.jpg"
         );
 
         BusinessProfileEdit edit = new BusinessProfileEdit();
@@ -783,18 +785,140 @@ class BusinessProfileServiceTest {
     }
 
     // -------------------------------------------------------------------------
-    // uploadImage — size validation
+    // uploadBannerImage / uploadThumbnailImage — validation and storage
     // -------------------------------------------------------------------------
 
     @Test
-    void uploadImage_fileTooLarge_throws400() {
+    void uploadBannerImage_fileTooLarge_throws400() {
         UUID businessId = UUID.randomUUID();
         MultipartFile file = mock(MultipartFile.class);
         when(file.getSize()).thenReturn(4 * 1024 * 1024L + 1);
 
-        assertThatThrownBy(() -> service.uploadImage(businessId, file))
+        assertThatThrownBy(() -> service.uploadBannerImage(businessId, file))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value()).isEqualTo(400));
+    }
+
+    @Test
+    void uploadBannerImage_invalidContentType_throws400() {
+        UUID businessId = UUID.randomUUID();
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getSize()).thenReturn(100L);
+        when(file.getContentType()).thenReturn("application/pdf");
+
+        assertThatThrownBy(() -> service.uploadBannerImage(businessId, file))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value()).isEqualTo(400));
+    }
+
+    @Test
+    void uploadBannerImage_replacesExistingBannerAndDeletesOldFile() throws Exception {
+        UUID businessId = UUID.randomUUID();
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(businessId);
+        profile.setBannerUrl("businesses/" + businessId + "/banner/old.jpg");
+
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getSize()).thenReturn(100L);
+        when(file.getContentType()).thenReturn("image/jpeg");
+        when(file.getOriginalFilename()).thenReturn("new.jpg");
+        when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(new byte[0]));
+
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(storageService.toPublicUrl(any())).thenAnswer(i -> "https://cdn/" + i.getArgument(0));
+
+        service.uploadBannerImage(businessId, file);
+
+        verify(storageService).deleteFile("businesses/" + businessId + "/banner/old.jpg");
+        verify(storageService).saveFile(argThat(p -> p.startsWith("businesses/" + businessId + "/banner/")), any(), eq("image/jpeg"));
+    }
+
+    @Test
+    void uploadBannerImage_noExistingBanner_savesWithoutDeletion() throws Exception {
+        UUID businessId = UUID.randomUUID();
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(businessId);
+
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getSize()).thenReturn(100L);
+        when(file.getContentType()).thenReturn("image/png");
+        when(file.getOriginalFilename()).thenReturn("photo.png");
+        when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(new byte[0]));
+
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(storageService.toPublicUrl(any())).thenAnswer(i -> "https://cdn/" + i.getArgument(0));
+
+        service.uploadBannerImage(businessId, file);
+
+        verify(storageService, never()).deleteFile(any());
+        verify(storageService).saveFile(argThat(p -> p.startsWith("businesses/" + businessId + "/banner/")), any(), eq("image/png"));
+    }
+
+    @Test
+    void uploadThumbnailImage_replacesThumbnailAndDeletesOldFile() throws Exception {
+        UUID businessId = UUID.randomUUID();
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(businessId);
+        profile.setThumbnailUrl("businesses/" + businessId + "/thumbnail/old.jpg");
+
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getSize()).thenReturn(100L);
+        when(file.getContentType()).thenReturn("image/jpeg");
+        when(file.getOriginalFilename()).thenReturn("logo.jpg");
+        when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream(new byte[0]));
+
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(storageService.toPublicUrl(any())).thenAnswer(i -> "https://cdn/" + i.getArgument(0));
+
+        service.uploadThumbnailImage(businessId, file);
+
+        verify(storageService).deleteFile("businesses/" + businessId + "/thumbnail/old.jpg");
+        verify(storageService).saveFile(argThat(p -> p.startsWith("businesses/" + businessId + "/thumbnail/")), any(), eq("image/jpeg"));
+    }
+
+    @Test
+    void deleteBannerImage_throwsWhenNoBannerSet() {
+        UUID businessId = UUID.randomUUID();
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(businessId);
+
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
+
+        assertThatThrownBy(() -> service.deleteBannerImage(businessId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value()).isEqualTo(404));
+    }
+
+    @Test
+    void deleteBannerImage_deletesStoredFileAndClearsField() throws Exception {
+        UUID businessId = UUID.randomUUID();
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(businessId);
+        profile.setBannerUrl("businesses/" + businessId + "/banner/img.jpg");
+
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.deleteBannerImage(businessId);
+
+        verify(storageService).deleteFile("businesses/" + businessId + "/banner/img.jpg");
+        assertThat(profile.getBannerUrl()).isNull();
+    }
+
+    @Test
+    void deleteThumbnailImage_throwsWhenNoThumbnailSet() {
+        UUID businessId = UUID.randomUUID();
+        BusinessProfile profile = unclaimedProfile();
+        profile.setId(businessId);
+
+        when(businessProfileRepository.findById(businessId)).thenReturn(Optional.of(profile));
+
+        assertThatThrownBy(() -> service.deleteThumbnailImage(businessId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value()).isEqualTo(404));
     }
 
     // -------------------------------------------------------------------------

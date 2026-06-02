@@ -46,10 +46,8 @@ import com.paginass.util.TagNormalizer;
 import java.util.Arrays;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,7 +60,6 @@ public class BusinessProfileService {
 
     private static final int PAGE_SIZE = 10;
     private static final int DIRECTORY_PAGE_SIZE = 50;
-    private static final int MAX_IMAGES = 5;
     private static final long MAX_IMAGE_BYTES = StorageConstants.MAX_BUSINESS_IMAGE_BYTES;
 
     private final BusinessProfileRepository businessProfileRepository;
@@ -295,30 +292,18 @@ public class BusinessProfileService {
             @bizAuth.isOwnerOfClaimed(#businessId) or
             (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
             """)
-    public BusinessProfileDetailDto uploadImage(UUID businessId, MultipartFile file) {
-        if (file.getSize() > MAX_IMAGE_BYTES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image must not exceed 4 MB");
-        }
+    public BusinessProfileDetailDto uploadBannerImage(UUID businessId, MultipartFile file) {
+        validateImageFile(file);
         BusinessProfile profile = findProfileOrThrow(businessId);
-
-        List<String> currentPaths = profile.getImageUrls() == null
-                ? new ArrayList<>() : new ArrayList<>(profile.getImageUrls());
-
-        if (currentPaths.size() >= MAX_IMAGES) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Maximum of " + MAX_IMAGES + " images allowed per business");
-        }
-
+        deleteStoredFileIfPresent(profile.getBannerUrl());
         try {
             String extension = getExtension(file.getOriginalFilename());
-            String subPath = "businesses/" + businessId + "/" + UUID.randomUUID() + extension;
+            String subPath = "businesses/" + businessId + "/banner/" + UUID.randomUUID() + extension;
             storageService.saveFile(subPath, file.getInputStream(), file.getContentType());
-            currentPaths.add(subPath);
+            profile.setBannerUrl(subPath);
         } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save image");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save banner image");
         }
-
-        profile.setImageUrls(currentPaths);
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
@@ -327,22 +312,13 @@ public class BusinessProfileService {
             @bizAuth.isOwnerOfClaimed(#businessId) or
             (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
             """)
-    public BusinessProfileDetailDto reorderImages(UUID businessId, List<String> orderedUrls) {
+    public BusinessProfileDetailDto deleteBannerImage(UUID businessId) {
         BusinessProfile profile = findProfileOrThrow(businessId);
-
-        List<String> currentPaths = profile.getImageUrls() != null ? profile.getImageUrls() : List.of();
-        List<String> orderedPaths = orderedUrls.stream()
-                .map(url -> currentPaths.stream()
-                        .filter(p -> storageService.toPublicUrl(p).equals(url))
-                        .findFirst()
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image URL")))
-                .toList();
-        if (orderedPaths.size() != currentPaths.size()
-                || !new HashSet<>(orderedPaths).equals(new HashSet<>(currentPaths))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image list does not match stored images");
+        if (profile.getBannerUrl() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No banner image set");
         }
-
-        profile.setImageUrls(orderedPaths);
+        deleteStoredFileIfPresent(profile.getBannerUrl());
+        profile.setBannerUrl(null);
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
@@ -351,22 +327,33 @@ public class BusinessProfileService {
             @bizAuth.isOwnerOfClaimed(#businessId) or
             (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
             """)
-    public BusinessProfileDetailDto deleteImage(UUID businessId, int imageIndex) {
+    public BusinessProfileDetailDto uploadThumbnailImage(UUID businessId, MultipartFile file) {
+        validateImageFile(file);
         BusinessProfile profile = findProfileOrThrow(businessId);
-
-        List<String> currentPaths = new ArrayList<>(profile.getImageUrls());
-        if (imageIndex < 0 || imageIndex >= currentPaths.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image index");
-        }
-
-        String subPath = currentPaths.remove(imageIndex);
+        deleteStoredFileIfPresent(profile.getThumbnailUrl());
         try {
-            storageService.deleteFile(subPath);
+            String extension = getExtension(file.getOriginalFilename());
+            String subPath = "businesses/" + businessId + "/thumbnail/" + UUID.randomUUID() + extension;
+            storageService.saveFile(subPath, file.getInputStream(), file.getContentType());
+            profile.setThumbnailUrl(subPath);
         } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete image");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save thumbnail image");
         }
+        return toDetailDto(businessProfileRepository.save(profile));
+    }
 
-        profile.setImageUrls(currentPaths);
+    @PreAuthorize("""
+            hasRole('ADMIN') or
+            @bizAuth.isOwnerOfClaimed(#businessId) or
+            (hasRole('EDITOR') and @bizAuth.isUnclaimed(#businessId))
+            """)
+    public BusinessProfileDetailDto deleteThumbnailImage(UUID businessId) {
+        BusinessProfile profile = findProfileOrThrow(businessId);
+        if (profile.getThumbnailUrl() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No thumbnail image set");
+        }
+        deleteStoredFileIfPresent(profile.getThumbnailUrl());
+        profile.setThumbnailUrl(null);
         return toDetailDto(businessProfileRepository.save(profile));
     }
 
@@ -431,7 +418,8 @@ public class BusinessProfileService {
         snapshot.put("bizType", profile.getBizType() != null ? profile.getBizType().name() : null);
         snapshot.put("contactInfo", profile.getContactInfo());
         snapshot.put("tags", profile.getTags());
-        snapshot.put("imageUrls", profile.getImageUrls());
+        snapshot.put("bannerUrl", profile.getBannerUrl());
+        snapshot.put("thumbnailUrl", profile.getThumbnailUrl());
         snapshot.put("deliversToHome", profile.isDeliversToHome());
 
         BusinessProfileEdit edit = new BusinessProfileEdit();
@@ -454,8 +442,11 @@ public class BusinessProfileService {
         if (snapshot.get("tags") instanceof List<?> tags) {
             profile.setTags(tags.stream().map(Object::toString).toList());
         }
-        if (snapshot.get("imageUrls") instanceof List<?> urls) {
-            profile.setImageUrls(urls.stream().map(Object::toString).toList());
+        if (snapshot.containsKey("bannerUrl")) {
+            profile.setBannerUrl(snapshot.get("bannerUrl") instanceof String s ? s : null);
+        }
+        if (snapshot.containsKey("thumbnailUrl")) {
+            profile.setThumbnailUrl(snapshot.get("thumbnailUrl") instanceof String s ? s : null);
         }
         if (snapshot.get("deliversToHome") instanceof Boolean dth) profile.setDeliversToHome(dth);
     }
@@ -471,7 +462,7 @@ public class BusinessProfileService {
                 profile.getDescription(),
                 profile.getBizType() != null ? profile.getBizType().name() : null,
                 profile.getContactInfo(),
-                toPublicUrls(profile.getImageUrls()),
+                toPublicUrl(profile.getBannerUrl()),
                 profile.getTags() != null ? profile.getTags() : List.of(),
                 profile.isClaimed(),
                 hasPendingClaim,
@@ -510,7 +501,8 @@ public class BusinessProfileService {
                 p.getDescription(),
                 p.getContactInfo(),
                 p.getTags(),
-                toPublicUrls(p.getImageUrls()),
+                toPublicUrl(p.getBannerUrl()),
+                toPublicUrl(p.getThumbnailUrl()),
                 p.isActive(),
                 p.isClaimed(),
                 p.getCreatedBy(),
@@ -521,11 +513,28 @@ public class BusinessProfileService {
         );
     }
 
-    private List<String> toPublicUrls(List<String> subPaths) {
-        if (subPaths == null) return List.of();
-        return subPaths.stream()
-                .map(storageService::toPublicUrl)
-                .toList();
+    private String toPublicUrl(String subPath) {
+        if (subPath == null) return null;
+        return storageService.toPublicUrl(subPath);
+    }
+
+    private void validateImageFile(MultipartFile file) {
+        if (file.getSize() > MAX_IMAGE_BYTES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image must not exceed 4 MB");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File must be an image");
+        }
+    }
+
+    private void deleteStoredFileIfPresent(String subPath) {
+        if (subPath == null) return;
+        try {
+            storageService.deleteFile(subPath);
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to remove existing image");
+        }
     }
 
     private String getExtension(String filename) {
@@ -565,7 +574,8 @@ public class BusinessProfileService {
                     contactInfo,
                     p.getScore() != null ? p.getScore() : 0.0,
                     Boolean.TRUE.equals(p.getIsClaimed()),
-                    Boolean.TRUE.equals(p.getDeliversToHome()));
+                    Boolean.TRUE.equals(p.getDeliversToHome()),
+                    toPublicUrl(p.getThumbnailUrl()));
         } catch (Exception e) {
             throw new RuntimeException("Failed to map search result row", e);
         }

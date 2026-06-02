@@ -3,7 +3,6 @@ package com.paginass.controller;
 import com.paginass.dto.BusinessProfileDetailDto;
 import com.paginass.dto.BusinessProfileUpdateRequestDto;
 import com.paginass.dto.ContributorBusinessCreateRequestDto;
-import com.paginass.dto.ImageOrderRequestDto;
 import com.paginass.service.BusinessProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,24 +46,27 @@ public class BusinessProfileController {
         return ResponseEntity.ok(businessProfileService.updateProfile(id, request));
     }
 
-    @PostMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BusinessProfileDetailDto> uploadImage(
+    @PostMapping(value = "/{id}/images/banner", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BusinessProfileDetailDto> uploadBannerImage(
             @PathVariable UUID id,
             @RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(businessProfileService.uploadImage(id, file));
+        return ResponseEntity.ok(businessProfileService.uploadBannerImage(id, file));
     }
 
-    @PutMapping("/{id}/images/order")
-    public ResponseEntity<BusinessProfileDetailDto> reorderImages(
-            @PathVariable UUID id,
-            @RequestBody ImageOrderRequestDto request) {
-        return ResponseEntity.ok(businessProfileService.reorderImages(id, request.imageUrls()));
+    @DeleteMapping("/{id}/images/banner")
+    public ResponseEntity<BusinessProfileDetailDto> deleteBannerImage(@PathVariable UUID id) {
+        return ResponseEntity.ok(businessProfileService.deleteBannerImage(id));
     }
 
-    @DeleteMapping("/{id}/images/{index}")
-    public ResponseEntity<BusinessProfileDetailDto> deleteImage(
+    @PostMapping(value = "/{id}/images/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BusinessProfileDetailDto> uploadThumbnailImage(
             @PathVariable UUID id,
-            @PathVariable int index) {
-        return ResponseEntity.ok(businessProfileService.deleteImage(id, index));
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(businessProfileService.uploadThumbnailImage(id, file));
+    }
+
+    @DeleteMapping("/{id}/images/thumbnail")
+    public ResponseEntity<BusinessProfileDetailDto> deleteThumbnailImage(@PathVariable UUID id) {
+        return ResponseEntity.ok(businessProfileService.deleteThumbnailImage(id));
     }
 }

@@ -128,9 +128,9 @@ public class HighlightService {
     }
 
     private HighlightCardDto buildBusinessCard(Highlight highlight, BusinessProfile business) {
-        String thumbnailUrl = business.getImageUrls().isEmpty()
-                ? null
-                : storageService.toPublicUrl(business.getImageUrls().get(0));
+        String thumbnailUrl = business.getBannerUrl() != null
+                ? storageService.toPublicUrl(business.getBannerUrl())
+                : null;
         String badge = badge(business.getBizType());
         String description = business.getDescription() != null
                 ? business.getDescription()

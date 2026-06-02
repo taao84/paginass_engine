@@ -10,7 +10,7 @@ public record BusinessMiniSiteDto(
         String description,
         String bizType,
         Map<String, String> contactInfo,
-        List<String> imageUrls,
+        String bannerUrl,
         List<String> tags,
         boolean isClaimed,
         boolean hasPendingClaim,
