@@ -4,12 +4,14 @@ import com.paginass.config.FeatureKey;
 import com.paginass.dto.AppFeatureDto;
 import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.dto.BusinessMiniSiteDto;
+import com.paginass.dto.CampaignDto;
 import com.paginass.dto.DirectoryPageDto;
 import com.paginass.dto.FeaturedProductDto;
 import com.paginass.dto.TagCloudItemDto;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.service.AppFeatureService;
 import com.paginass.service.BusinessProfileService;
+import com.paginass.service.CampaignService;
 import com.paginass.service.FeaturedProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,7 @@ public class PublicController {
     private final BusinessProfileService businessProfileService;
     private final AppFeatureService appFeatureService;
     private final FeaturedProductService featuredProductService;
+    private final CampaignService campaignService;
     private final BusinessProfileRepository businessProfileRepository;
 
     @GetMapping("/features")
@@ -98,6 +101,14 @@ public class PublicController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
         return ResponseEntity.ok(businessProfileService.getBusinessLocations());
+    }
+
+    @GetMapping("/campaigns")
+    public ResponseEntity<List<CampaignDto>> getActiveCampaigns() {
+        if (!appFeatureService.isEnabled(FeatureKey.CAMPAIGNS)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        return ResponseEntity.ok(campaignService.getActive());
     }
 
 }

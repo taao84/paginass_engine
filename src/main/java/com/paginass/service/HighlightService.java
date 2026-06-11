@@ -3,17 +3,21 @@ package com.paginass.service;
 import com.paginass.dto.CreateHighlightRequestDto;
 import com.paginass.dto.HighlightableAdDto;
 import com.paginass.dto.HighlightableBusinessDto;
+import com.paginass.dto.HighlightableCampaignDto;
 import com.paginass.dto.HighlightCardDto;
 import com.paginass.dto.HighlightSummaryDto;
 import com.paginass.entity.AdCategory;
 import com.paginass.entity.Advertisement;
 import com.paginass.entity.BusinessProfile;
 import com.paginass.entity.BusinessType;
+import com.paginass.entity.Campaign;
+import com.paginass.entity.CampaignStatus;
 import com.paginass.entity.Highlight;
 import com.paginass.entity.HighlightType;
 import com.paginass.entity.User;
 import com.paginass.repository.AdvertisementRepository;
 import com.paginass.repository.BusinessProfileRepository;
+import com.paginass.repository.CampaignRepository;
 import com.paginass.repository.HighlightRepository;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,9 +38,12 @@ import java.util.UUID;
 @Slf4j
 public class HighlightService {
 
+    private static final String CAMPAIGN_BADGE = "Campaña";
+
     private final HighlightRepository highlightRepository;
     private final BusinessProfileRepository businessProfileRepository;
     private final AdvertisementRepository advertisementRepository;
+    private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
 
@@ -97,6 +104,18 @@ public class HighlightService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<HighlightableCampaignDto> searchCampaigns(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        return campaignRepository
+                .findByStatusAndNameContainingIgnoreCaseOrderByNameAsc(CampaignStatus.ACTIVE, query.trim())
+                .stream()
+                .map(c -> new HighlightableCampaignDto(c.getId(), c.getName(), CAMPAIGN_BADGE))
+                .toList();
+    }
+
     @Transactional
     public int expireHighlights() {
         List<Highlight> expired = highlightRepository.findAllByEnabledTrueAndExpiresAtBefore(Instant.now());
@@ -105,26 +124,29 @@ public class HighlightService {
     }
 
     private void validateReference(HighlightType type, UUID referenceId) {
-        if (type == HighlightType.BUSINESS) {
-            businessProfileRepository.findById(referenceId)
+        switch (type) {
+            case BUSINESS -> businessProfileRepository.findById(referenceId)
                     .orElseThrow(() -> new IllegalArgumentException("Business not found: " + referenceId));
-        } else {
-            advertisementRepository.findById(referenceId)
+            case ADVERTISEMENT -> advertisementRepository.findById(referenceId)
                     .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + referenceId));
+            case CAMPAIGN -> campaignRepository.findById(referenceId)
+                    .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + referenceId));
         }
     }
 
     private Optional<HighlightCardDto> toCardDtoOrEmpty(Highlight highlight) {
-        if (highlight.getType() == HighlightType.BUSINESS) {
-            return businessProfileRepository.findById(highlight.getReferenceId())
+        return switch (highlight.getType()) {
+            case BUSINESS -> businessProfileRepository.findById(highlight.getReferenceId())
                     .filter(BusinessProfile::isActive)
                     .map(b -> buildBusinessCard(highlight, b));
-        } else {
-            return advertisementRepository.findById(highlight.getReferenceId())
+            case ADVERTISEMENT -> advertisementRepository.findById(highlight.getReferenceId())
                     .filter(Advertisement::isActive)
                     .filter(a -> a.getExpiresAt() == null || a.getExpiresAt().isAfter(Instant.now()))
                     .map(a -> buildAdCard(highlight, a));
-        }
+            case CAMPAIGN -> campaignRepository.findById(highlight.getReferenceId())
+                    .filter(c -> c.getStatus() == CampaignStatus.ACTIVE)
+                    .map(c -> buildCampaignCard(highlight, c));
+        };
     }
 
     private HighlightCardDto buildBusinessCard(Highlight highlight, BusinessProfile business) {
@@ -162,28 +184,40 @@ public class HighlightService {
         );
     }
 
+    private HighlightCardDto buildCampaignCard(Highlight highlight, Campaign campaign) {
+        String thumbnailUrl = campaign.getImageSubpath() != null
+                ? storageService.toPublicUrl(campaign.getImageSubpath())
+                : null;
+        return new HighlightCardDto(
+                highlight.getId(),
+                HighlightType.CAMPAIGN,
+                campaign.getName(),
+                thumbnailUrl,
+                "/concursos/" + campaign.getSlug(),
+                CAMPAIGN_BADGE,
+                campaign.getDescription() != null ? campaign.getDescription() : ""
+        );
+    }
+
     private String resolveTitle(Highlight highlight) {
-        if (highlight.getType() == HighlightType.BUSINESS) {
-            return businessProfileRepository.findById(highlight.getReferenceId())
-                    .map(BusinessProfile::getName)
-                    .orElse("(negocio eliminado)");
-        } else {
-            return advertisementRepository.findById(highlight.getReferenceId())
-                    .map(Advertisement::getTitle)
-                    .orElse("(anuncio eliminado)");
-        }
+        return switch (highlight.getType()) {
+            case BUSINESS -> businessProfileRepository.findById(highlight.getReferenceId())
+                    .map(BusinessProfile::getName).orElse("(negocio eliminado)");
+            case ADVERTISEMENT -> advertisementRepository.findById(highlight.getReferenceId())
+                    .map(Advertisement::getTitle).orElse("(anuncio eliminado)");
+            case CAMPAIGN -> campaignRepository.findById(highlight.getReferenceId())
+                    .map(Campaign::getName).orElse("(concurso eliminado)");
+        };
     }
 
     private String resolveBadge(Highlight highlight) {
-        if (highlight.getType() == HighlightType.BUSINESS) {
-            return businessProfileRepository.findById(highlight.getReferenceId())
-                    .map(b -> badge(b.getBizType()))
-                    .orElse("");
-        } else {
-            return advertisementRepository.findById(highlight.getReferenceId())
-                    .map(a -> badge(a.getCategory()))
-                    .orElse("");
-        }
+        return switch (highlight.getType()) {
+            case BUSINESS -> businessProfileRepository.findById(highlight.getReferenceId())
+                    .map(b -> badge(b.getBizType())).orElse("");
+            case ADVERTISEMENT -> advertisementRepository.findById(highlight.getReferenceId())
+                    .map(a -> badge(a.getCategory())).orElse("");
+            case CAMPAIGN -> CAMPAIGN_BADGE;
+        };
     }
 
     private HighlightSummaryDto toSummaryDto(Highlight highlight, String title, String badge) {

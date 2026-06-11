@@ -79,6 +79,7 @@ public class AuthController {
         String email = resolveEmail(authentication);
         return userRepository.findByEmail(email)
                 .map(user -> ResponseEntity.ok(new CurrentUserDto(
+                        user.getId(),
                         user.getFullName(),
                         user.getEmail(),
                         user.getRole(),
@@ -102,6 +103,7 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.ok(new CurrentUserDto(
+                user.getId(),
                 user.getFullName(),
                 user.getEmail(),
                 user.getRole(),

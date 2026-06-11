@@ -3,6 +3,7 @@ package com.paginass.controller;
 import com.paginass.dto.CreateHighlightRequestDto;
 import com.paginass.dto.HighlightableAdDto;
 import com.paginass.dto.HighlightableBusinessDto;
+import com.paginass.dto.HighlightableCampaignDto;
 import com.paginass.dto.HighlightSummaryDto;
 import com.paginass.service.HighlightService;
 import jakarta.validation.Valid;
@@ -55,5 +56,11 @@ public class AdminHighlightController {
     public ResponseEntity<List<HighlightableAdDto>> searchAds(
             @RequestParam(defaultValue = "") String q) {
         return ResponseEntity.ok(highlightService.searchAds(q));
+    }
+
+    @GetMapping("/search/campaigns")
+    public ResponseEntity<List<HighlightableCampaignDto>> searchCampaigns(
+            @RequestParam(defaultValue = "") String q) {
+        return ResponseEntity.ok(highlightService.searchCampaigns(q));
     }
 }

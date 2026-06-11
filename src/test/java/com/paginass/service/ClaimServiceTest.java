@@ -186,7 +186,6 @@ class ClaimServiceTest {
         when(businessClaimRepository.existsByBusinessIdAndClaimantIdAndStatus(
                 eq(businessId), eq(claimant.getId()), eq(ClaimStatus.PENDING))).thenReturn(false);
         when(businessClaimRepository.save(any())).thenReturn(savedClaim);
-        when(userRepository.findById(claimant.getId())).thenReturn(Optional.of(claimant));
         when(settingsService.getAdminNotificationEmail()).thenReturn(Optional.of("admin@paginass.com"));
 
         claimService.submitClaim(businessId, claimant);
@@ -225,7 +224,6 @@ class ClaimServiceTest {
         when(businessClaimRepository.existsByBusinessIdAndClaimantIdAndStatus(
                 eq(businessId), eq(claimant.getId()), eq(ClaimStatus.PENDING))).thenReturn(false);
         when(businessClaimRepository.save(any())).thenReturn(savedClaim);
-        when(userRepository.findById(claimant.getId())).thenReturn(Optional.of(claimant));
         when(settingsService.getAdminNotificationEmail()).thenReturn(Optional.empty());
 
         claimService.submitClaim(businessId, claimant);

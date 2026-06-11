@@ -158,6 +158,29 @@ resources:
         editor: denied
         admin: allowed
 
+  - name: Marketing Campaigns
+    rules:
+      - operation: Create or edit a campaign
+        contributor: denied
+        editor: denied
+        admin: allowed
+      - operation: Change campaign status (Draft / Active / Ended)
+        contributor: denied
+        editor: denied
+        admin: allowed
+      - operation: Submit a photo contest entry
+        contributor: allowed
+        editor: allowed
+        admin: allowed
+      - operation: Vote (like) a photo contest entry
+        contributor: allowed
+        editor: allowed
+        admin: allowed
+      - operation: View contest gallery and entries (public)
+        contributor: allowed
+        editor: allowed
+        admin: allowed
+
   - name: Productos Destacados
     rules:
       - operation: View featured products on mini-site (public)

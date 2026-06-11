@@ -133,6 +133,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/profile/setup").hasAnyRole("EDITOR", "ADMIN")
                 .requestMatchers("/api/ads/**").authenticated()
                 .requestMatchers("/api/business/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/contests/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/contests/*/entries").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/contests/entries/*/like").authenticated()
                 .anyRequest().authenticated()
             )
 
