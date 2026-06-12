@@ -24,6 +24,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.paginass.dto.AdvertisementAdminPageDto;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -192,9 +197,9 @@ class AdvertisementServiceTest {
     }
 
     @Test
-    void addImages_saleCategory_moreThan3_throws400() {
+    void addImages_saleCategory_moreThan4_throws400() {
         Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(30, ChronoUnit.DAYS));
-        ad.getImageUrls().addAll(List.of("url1", "url2", "url3"));
+        ad.getImageUrls().addAll(List.of("url1", "url2", "url3", "url4"));
         when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
 
         MockMultipartFile file = new MockMultipartFile("files", "img.jpg", "image/jpeg", new byte[]{1});
@@ -206,14 +211,93 @@ class AdvertisementServiceTest {
     }
 
     @Test
-    void addImages_eventCategory_moreThan1_throws400() {
+    void addImages_saleCategory_4thImage_succeeds() throws IOException {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(30, ChronoUnit.DAYS));
+        ad.getImageUrls().addAll(List.of("url1", "url2", "url3"));
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+        when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+
+        MockMultipartFile file = new MockMultipartFile("files", "img4.jpg", "image/jpeg", new byte[]{1});
+
+        AdvertisementResponseDto result = advertisementService.addImages(ad.getId(), List.of(file));
+
+        assertThat(result.imageUrls()).hasSize(4);
+    }
+
+    @Test
+    void addImages_eventCategory_moreThan4_throws400() {
         Advertisement ad = buildAd(AdCategory.EVENT, owner, Instant.now().plus(30, ChronoUnit.DAYS));
-        ad.getImageUrls().add("poster.jpg");
+        ad.getImageUrls().addAll(List.of("url1", "url2", "url3", "url4"));
         when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
 
         MockMultipartFile file = new MockMultipartFile("files", "extra.jpg", "image/jpeg", new byte[]{1});
 
         assertThatThrownBy(() -> advertisementService.addImages(ad.getId(), List.of(file)))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(BAD_REQUEST);
+    }
+
+    @Test
+    void addImages_eventCategory_4thImage_succeeds() throws IOException {
+        Advertisement ad = buildAd(AdCategory.EVENT, owner, Instant.now().plus(30, ChronoUnit.DAYS));
+        ad.getImageUrls().addAll(List.of("url1", "url2", "url3"));
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+        when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+
+        MockMultipartFile file = new MockMultipartFile("files", "img4.jpg", "image/jpeg", new byte[]{1});
+
+        AdvertisementResponseDto result = advertisementService.addImages(ad.getId(), List.of(file));
+
+        assertThat(result.imageUrls()).hasSize(4);
+    }
+
+    // --- deleteImage ---
+
+    @Test
+    void deleteImage_removesFromListAndStorage() throws IOException {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(30, ChronoUnit.DAYS));
+        ad.getImageUrls().addAll(List.of("ads/a.jpg", "ads/b.jpg"));
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+
+        advertisementService.deleteImage(ad.getId(), 0);
+
+        verify(storageService).deleteFile("ads/a.jpg");
+    }
+
+    @Test
+    void deleteImage_outOfRange_throws400() {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(30, ChronoUnit.DAYS));
+        ad.getImageUrls().add("ads/a.jpg");
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+
+        assertThatThrownBy(() -> advertisementService.deleteImage(ad.getId(), 5))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(BAD_REQUEST);
+    }
+
+    // --- reorderImages ---
+
+    @Test
+    void reorderImages_validPermutation_reorders() {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(30, ChronoUnit.DAYS));
+        ad.getImageUrls().addAll(List.of("ads/a.jpg", "ads/b.jpg", "ads/c.jpg"));
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+        when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+
+        AdvertisementResponseDto result = advertisementService.reorderImages(ad.getId(), List.of(2, 0, 1));
+
+        assertThat(result.imageUrls()).hasSize(3);
+    }
+
+    @Test
+    void reorderImages_invalidPermutation_throws400() {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(30, ChronoUnit.DAYS));
+        ad.getImageUrls().addAll(List.of("ads/a.jpg", "ads/b.jpg"));
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+
+        assertThatThrownBy(() -> advertisementService.reorderImages(ad.getId(), List.of(0, 5)))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(BAD_REQUEST);
@@ -331,6 +415,59 @@ class AdvertisementServiceTest {
         List<AdvertisementSummaryDto> result = advertisementService.getBusinessEvents(businessId);
 
         assertThat(result).isEmpty();
+    }
+
+    // --- getAdminAds ---
+
+    @Test
+    void getAdminAds_returnsActiveAndInactiveAds() {
+        Advertisement active = buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS));
+        Advertisement inactive = buildAd(AdCategory.JOB, owner, Instant.now().plus(20, ChronoUnit.DAYS));
+        inactive.setActive(false);
+        PageImpl<Advertisement> page = new PageImpl<>(List.of(inactive, active), PageRequest.of(0, 20), 2);
+        when(advertisementRepository.findAllOrderByActiveAscCreatedAtDesc(any(Pageable.class))).thenReturn(page);
+        when(userRepository.findAllById(any())).thenReturn(List.of(owner));
+
+        AdvertisementAdminPageDto result = advertisementService.getAdminAds(0);
+
+        assertThat(result.content()).hasSize(2);
+        assertThat(result.content().get(0).active()).isFalse();
+        assertThat(result.content().get(1).active()).isTrue();
+        assertThat(result.totalElements()).isEqualTo(2);
+    }
+
+    @Test
+    void getAdminAds_noAds_returnsEmptyPage() {
+        PageImpl<Advertisement> empty = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(advertisementRepository.findAllOrderByActiveAscCreatedAtDesc(any(Pageable.class))).thenReturn(empty);
+
+        AdvertisementAdminPageDto result = advertisementService.getAdminAds(0);
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.totalElements()).isEqualTo(0);
+    }
+
+    // --- disableAdvertisement / enableAdvertisement ---
+
+    @Test
+    void disableAdvertisement_setsActiveFalse() {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS));
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+
+        advertisementService.disableAdvertisement(ad.getId());
+
+        assertThat(ad.isActive()).isFalse();
+    }
+
+    @Test
+    void enableAdvertisement_setsActiveTrue() {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS));
+        ad.setActive(false);
+        when(advertisementRepository.findById(ad.getId())).thenReturn(Optional.of(ad));
+
+        advertisementService.enableAdvertisement(ad.getId());
+
+        assertThat(ad.isActive()).isTrue();
     }
 
     // --- Helpers ---

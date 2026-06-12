@@ -20,5 +20,6 @@ public record AdvertisementSummaryDto(
         String ownerName,
         UUID businessId,
         String businessName,
-        String businessSlug
+        String businessSlug,
+        boolean active
 ) {}

@@ -2,6 +2,8 @@ package com.paginass.repository;
 
 import com.paginass.entity.AdCategory;
 import com.paginass.entity.Advertisement;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +15,11 @@ import java.util.UUID;
 public interface AdvertisementRepository extends JpaRepository<Advertisement, UUID> {
 
     List<Advertisement> findAllByActiveTrueOrderByCreatedAtDesc();
+
+    Page<Advertisement> findAllByActiveTrueOrderByCreatedAtDesc(Pageable pageable);
+
+    @Query("SELECT a FROM Advertisement a ORDER BY a.active ASC, a.createdAt DESC")
+    Page<Advertisement> findAllOrderByActiveAscCreatedAtDesc(Pageable pageable);
 
     List<Advertisement> findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(AdCategory category);
 

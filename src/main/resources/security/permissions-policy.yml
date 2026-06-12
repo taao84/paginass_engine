@@ -157,6 +157,14 @@ resources:
         contributor: denied
         editor: denied
         admin: allowed
+      - operation: Disable any advertisement
+        contributor: denied
+        editor: denied
+        admin: allowed
+      - operation: Enable any advertisement
+        contributor: denied
+        editor: denied
+        admin: allowed
 
   - name: Marketing Campaigns
     rules:

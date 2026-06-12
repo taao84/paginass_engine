@@ -1,5 +1,6 @@
 package com.paginass.controller;
 
+import com.paginass.dto.AdImageOrderRequestDto;
 import com.paginass.dto.AdvertisementRequestDto;
 import com.paginass.dto.AdvertisementResponseDto;
 import com.paginass.dto.AdvertisementSummaryDto;
@@ -44,6 +45,21 @@ public class AdvertisementController {
             @PathVariable UUID id,
             @Valid @RequestBody AdvertisementUpdateRequestDto request) {
         return advertisementService.updateAdvertisement(id, request);
+    }
+
+    @DeleteMapping("/{id}/images/{index}")
+    public AdvertisementResponseDto deleteImage(
+            @PathVariable UUID id,
+            @PathVariable int index) {
+        advertisementService.deleteImage(id, index);
+        return advertisementService.getAdvertisementById(id);
+    }
+
+    @PutMapping("/{id}/images/order")
+    public AdvertisementResponseDto reorderImages(
+            @PathVariable UUID id,
+            @RequestBody AdImageOrderRequestDto request) {
+        return advertisementService.reorderImages(id, request.indices());
     }
 
     @DeleteMapping("/{id}")

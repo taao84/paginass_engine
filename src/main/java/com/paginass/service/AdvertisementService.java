@@ -1,5 +1,6 @@
 package com.paginass.service;
 
+import com.paginass.dto.AdvertisementAdminPageDto;
 import com.paginass.dto.AdvertisementRequestDto;
 import com.paginass.dto.AdvertisementResponseDto;
 import com.paginass.dto.AdvertisementSummaryDto;
@@ -28,20 +29,24 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
 public class AdvertisementService {
 
     private static final int AD_EXPIRY_DAYS = 30;
-    private static final int MAX_SALE_IMAGES = 3;
-    private static final int MAX_EVENT_IMAGES = 1;
+    private static final int MAX_AD_IMAGES = 4;
+    private static final int ADMIN_PAGE_SIZE = 20;
 
     private final AdvertisementRepository advertisementRepository;
     private final UserRepository userRepository;
@@ -91,7 +96,7 @@ public class AdvertisementService {
         return toSummaryDtos(events);
     }
 
-    @PreAuthorize("@adAuth.isOwner(#id)")
+    @PreAuthorize("@adAuth.isOwnerOrAdmin(#id)")
     @Transactional
     public AdvertisementResponseDto updateAdvertisement(UUID id, AdvertisementUpdateRequestDto request) {
         Advertisement ad = loadAdOrThrow(id);
@@ -109,7 +114,7 @@ public class AdvertisementService {
         return toResponseDto(ad, loadOwnerOrThrow(ad.getOwnerId()));
     }
 
-    @PreAuthorize("@adAuth.isOwner(#adId)")
+    @PreAuthorize("@adAuth.isOwnerOrAdmin(#adId)")
     public AdvertisementResponseDto addImages(UUID adId, List<MultipartFile> files) {
         Advertisement ad = loadAdOrThrow(adId);
         validateImageCount(ad.getCategory(), ad.getImageUrls().size(), files.size());
@@ -165,6 +170,30 @@ public class AdvertisementService {
                 .toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
+    public AdvertisementAdminPageDto getAdminAds(int page) {
+        Page<Advertisement> adPage = advertisementRepository
+                .findAllOrderByActiveAscCreatedAtDesc(PageRequest.of(page, ADMIN_PAGE_SIZE));
+        List<AdvertisementSummaryDto> content = toSummaryDtos(adPage.getContent());
+        return new AdvertisementAdminPageDto(
+                content, adPage.getNumber(), adPage.getTotalPages(), adPage.getTotalElements());
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public void disableAdvertisement(UUID id) {
+        Advertisement ad = loadAdOrThrow(id);
+        ad.setActive(false);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public void enableAdvertisement(UUID id) {
+        Advertisement ad = loadAdOrThrow(id);
+        ad.setActive(true);
+    }
+
     @PreAuthorize("@adAuth.isOwnerOrAdmin(#id)")
     public void deleteAdvertisement(UUID id) {
         List<String> pathsToDelete = self.deleteAdvertisementRecord(id);
@@ -206,18 +235,48 @@ public class AdvertisementService {
                 .toList();
     }
 
+    @PreAuthorize("@adAuth.isOwnerOrAdmin(#adId)")
+    public void deleteImage(UUID adId, int index) {
+        Advertisement ad = loadAdOrThrow(adId);
+        List<String> urls = ad.getImageUrls();
+        if (index < 0 || index >= urls.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image index out of range");
+        }
+        String subPath = urls.get(index);
+        self.removeImageRecord(adId, index);
+        try {
+            storageService.deleteFile(subPath);
+        } catch (IOException e) {
+            // storage delete failed — record already removed, continue
+        }
+    }
+
+    @Transactional
+    public void removeImageRecord(UUID adId, int index) {
+        Advertisement ad = loadAdOrThrow(adId);
+        ad.getImageUrls().remove(index);
+    }
+
+    @PreAuthorize("@adAuth.isOwnerOrAdmin(#adId)")
+    @Transactional
+    public AdvertisementResponseDto reorderImages(UUID adId, List<Integer> indices) {
+        Advertisement ad = loadAdOrThrow(adId);
+        List<String> current = ad.getImageUrls();
+        Set<Integer> expected = IntStream.range(0, current.size()).boxed().collect(Collectors.toSet());
+        if (indices.size() != current.size() || !new HashSet<>(indices).equals(expected)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image order");
+        }
+        ad.setImageUrls(indices.stream().map(current::get).collect(Collectors.toList()));
+        return toResponseDto(ad, loadOwnerOrThrow(ad.getOwnerId()));
+    }
+
     private void validateImageCount(AdCategory category, int existing, int incoming) {
         if (category == AdCategory.JOB) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Images are not allowed for JOB advertisements");
         }
-        int total = existing + incoming;
-        if (category == AdCategory.SALE && total > MAX_SALE_IMAGES) {
+        if (existing + incoming > MAX_AD_IMAGES) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "SALE advertisements allow at most " + MAX_SALE_IMAGES + " images");
-        }
-        if (category == AdCategory.EVENT && total > MAX_EVENT_IMAGES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "EVENT advertisements allow at most " + MAX_EVENT_IMAGES + " image");
+                    "Advertisements allow at most " + MAX_AD_IMAGES + " images");
         }
     }
 
@@ -279,7 +338,8 @@ public class AdvertisementService {
                 owner != null ? owner.getFullName() : null,
                 ad.getBusinessId(),
                 business != null ? business.getName() : null,
-                business != null ? business.getSlug() : null
+                business != null ? business.getSlug() : null,
+                ad.isActive()
         );
     }
 
