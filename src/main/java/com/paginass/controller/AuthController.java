@@ -83,7 +83,9 @@ public class AuthController {
                         user.getFullName(),
                         user.getEmail(),
                         user.getRole(),
-                        businessProfileService.hasOwnedBusiness(user.getId()))))
+                        businessProfileService.hasOwnedBusiness(user.getId()),
+                        user.getDateOfBirth(),
+                        user.getPhone())))
                 .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 
@@ -100,6 +102,8 @@ public class AuthController {
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
 
         user.setFullName(request.fullName());
+        user.setDateOfBirth(request.dateOfBirth());
+        user.setPhone(request.phone() != null ? request.phone().trim() : null);
         userRepository.save(user);
 
         return ResponseEntity.ok(new CurrentUserDto(
@@ -107,7 +111,9 @@ public class AuthController {
                 user.getFullName(),
                 user.getEmail(),
                 user.getRole(),
-                businessProfileService.hasOwnedBusiness(user.getId())));
+                businessProfileService.hasOwnedBusiness(user.getId()),
+                user.getDateOfBirth(),
+                user.getPhone()));
     }
 
     private String resolveEmail(Authentication authentication) {

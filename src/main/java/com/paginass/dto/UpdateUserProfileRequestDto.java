@@ -2,4 +2,10 @@ package com.paginass.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record UpdateUserProfileRequestDto(@NotBlank String fullName) {}
+import java.time.LocalDate;
+
+public record UpdateUserProfileRequestDto(
+        @NotBlank String fullName,
+        LocalDate dateOfBirth,
+        String phone
+) {}
