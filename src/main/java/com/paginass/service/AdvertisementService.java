@@ -5,6 +5,7 @@ import com.paginass.dto.AdvertisementRequestDto;
 import com.paginass.dto.AdvertisementResponseDto;
 import com.paginass.dto.AdvertisementSummaryDto;
 import com.paginass.dto.AdvertisementUpdateRequestDto;
+import com.paginass.dto.PublicAdsPageDto;
 import com.paginass.entity.AdCategory;
 import com.paginass.entity.Advertisement;
 import com.paginass.entity.User;
@@ -47,6 +48,7 @@ public class AdvertisementService {
     private static final int AD_EXPIRY_DAYS = 30;
     private static final int MAX_AD_IMAGES = 4;
     private static final int ADMIN_PAGE_SIZE = 20;
+    public static final int PUBLIC_PAGE_SIZE = 6;
 
     private final AdvertisementRepository advertisementRepository;
     private final UserRepository userRepository;
@@ -149,6 +151,21 @@ public class AdvertisementService {
             ads = advertisementRepository.findAllByActiveTrueOrderByCreatedAtDesc();
         }
         return toSummaryDtos(ads);
+    }
+
+    @Transactional(readOnly = true)
+    public PublicAdsPageDto getActiveAdvertisementsPage(AdCategory category, String search, int page) {
+        PageRequest pageRequest = PageRequest.of(page, PUBLIC_PAGE_SIZE);
+        Page<Advertisement> adPage;
+        if (search != null && !search.isBlank()) {
+            adPage = advertisementRepository.searchByKeywordAndActive("%" + search.trim() + "%", pageRequest);
+        } else if (category != null) {
+            adPage = advertisementRepository.findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(category, pageRequest);
+        } else {
+            adPage = advertisementRepository.findAllByActiveTrueOrderByCreatedAtDesc(pageRequest);
+        }
+        List<AdvertisementSummaryDto> content = toSummaryDtos(adPage.getContent());
+        return new PublicAdsPageDto(content, adPage.getNumber(), adPage.getTotalPages(), !adPage.isLast());
     }
 
     @Transactional(readOnly = true)

@@ -23,6 +23,8 @@ public interface AdvertisementRepository extends JpaRepository<Advertisement, UU
 
     List<Advertisement> findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(AdCategory category);
 
+    Page<Advertisement> findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(AdCategory category, Pageable pageable);
+
     List<Advertisement> findAllByOwnerIdAndActiveTrueOrderByCreatedAtDesc(UUID ownerId);
 
     @Query(value = """
@@ -40,6 +42,20 @@ public interface AdvertisementRepository extends JpaRepository<Advertisement, UU
             ORDER BY created_at DESC
             """, nativeQuery = true)
     List<Advertisement> searchByKeywordAndActive(@Param("kw") String keyword);
+
+    @Query(value = """
+            SELECT * FROM advertisements
+            WHERE active = true
+              AND (title ILIKE :kw OR content ILIKE :kw)
+            ORDER BY created_at DESC
+            """,
+           countQuery = """
+            SELECT count(*) FROM advertisements
+            WHERE active = true
+              AND (title ILIKE :kw OR content ILIKE :kw)
+            """,
+           nativeQuery = true)
+    Page<Advertisement> searchByKeywordAndActive(@Param("kw") String keyword, Pageable pageable);
 
     List<Advertisement> findAllByActiveTrueAndExpiresAtBefore(Instant now);
 

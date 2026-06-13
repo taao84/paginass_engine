@@ -25,6 +25,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.paginass.dto.AdvertisementAdminPageDto;
+import com.paginass.dto.PublicAdsPageDto;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -468,6 +469,65 @@ class AdvertisementServiceTest {
         advertisementService.enableAdvertisement(ad.getId());
 
         assertThat(ad.isActive()).isTrue();
+    }
+
+    // --- getActiveAdvertisementsPage ---
+
+    @Test
+    void getActiveAdvertisementsPage_page0_returnsFirstBatch() {
+        List<Advertisement> batch = List.of(
+                buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS)),
+                buildAd(AdCategory.JOB, owner, Instant.now().plus(10, ChronoUnit.DAYS)));
+        PageImpl<Advertisement> page = new PageImpl<>(batch, PageRequest.of(0, 6), 8);
+        when(advertisementRepository.findAllByActiveTrueOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(page);
+        when(userRepository.findAllById(any())).thenReturn(List.of(owner));
+
+        PublicAdsPageDto result = advertisementService.getActiveAdvertisementsPage(null, null, 0);
+
+        assertThat(result.content()).hasSize(2);
+        assertThat(result.page()).isEqualTo(0);
+        assertThat(result.hasMore()).isTrue();
+    }
+
+    @Test
+    void getActiveAdvertisementsPage_lastPage_hasMoreFalse() {
+        List<Advertisement> batch = List.of(buildAd(AdCategory.SALE, owner, Instant.now().plus(10, ChronoUnit.DAYS)));
+        PageImpl<Advertisement> page = new PageImpl<>(batch, PageRequest.of(1, 6), 7);
+        when(advertisementRepository.findAllByActiveTrueOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(page);
+        when(userRepository.findAllById(any())).thenReturn(List.of(owner));
+
+        PublicAdsPageDto result = advertisementService.getActiveAdvertisementsPage(null, null, 1);
+
+        assertThat(result.hasMore()).isFalse();
+        assertThat(result.totalPages()).isEqualTo(2);
+    }
+
+    @Test
+    void getActiveAdvertisementsPage_categoryFilter_delegatesToCategoryRepository() {
+        Advertisement jobAd = buildAd(AdCategory.JOB, owner, Instant.now().plus(5, ChronoUnit.DAYS));
+        PageImpl<Advertisement> page = new PageImpl<>(List.of(jobAd), PageRequest.of(0, 6), 1);
+        when(advertisementRepository.findAllByCategoryAndActiveTrueOrderByCreatedAtDesc(
+                eq(AdCategory.JOB), any(Pageable.class))).thenReturn(page);
+        when(userRepository.findAllById(any())).thenReturn(List.of(owner));
+
+        PublicAdsPageDto result = advertisementService.getActiveAdvertisementsPage(AdCategory.JOB, null, 0);
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).category()).isEqualTo(AdCategory.JOB);
+        assertThat(result.hasMore()).isFalse();
+    }
+
+    @Test
+    void getActiveAdvertisementsPage_searchFilter_delegatesToSearchRepository() {
+        Advertisement ad = buildAd(AdCategory.SALE, owner, Instant.now().plus(5, ChronoUnit.DAYS));
+        PageImpl<Advertisement> page = new PageImpl<>(List.of(ad), PageRequest.of(0, 6), 1);
+        when(advertisementRepository.searchByKeywordAndActive(eq("%bike%"), any(Pageable.class))).thenReturn(page);
+        when(userRepository.findAllById(any())).thenReturn(List.of(owner));
+
+        PublicAdsPageDto result = advertisementService.getActiveAdvertisementsPage(null, "bike", 0);
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.hasMore()).isFalse();
     }
 
     // --- Helpers ---

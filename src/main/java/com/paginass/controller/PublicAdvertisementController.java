@@ -2,6 +2,7 @@ package com.paginass.controller;
 
 import com.paginass.dto.AdvertisementResponseDto;
 import com.paginass.dto.AdvertisementSummaryDto;
+import com.paginass.dto.PublicAdsPageDto;
 import com.paginass.entity.AdCategory;
 import com.paginass.service.AdvertisementService;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +19,11 @@ public class PublicAdvertisementController {
     private final AdvertisementService advertisementService;
 
     @GetMapping
-    public List<AdvertisementSummaryDto> listAds(
+    public PublicAdsPageDto listAds(
             @RequestParam(required = false) AdCategory category,
-            @RequestParam(required = false) String search) {
-        return advertisementService.getActiveAdvertisements(category, search);
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page) {
+        return advertisementService.getActiveAdvertisementsPage(category, search, page);
     }
 
     @GetMapping("/{id}")
