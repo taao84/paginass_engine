@@ -92,7 +92,7 @@ public class PublicController {
     public ResponseEntity<List<FeaturedProductDto>> getHighlightedBusinessProducts(@PathVariable String slug) {
         var business = businessProfileRepository.findBySlugAndIsActiveTrue(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
-        return ResponseEntity.ok(featuredProductService.getHighlightedBusinessProducts(business.getId()));
+        return ResponseEntity.ok(featuredProductService.getHighlightedBusinessProductsPublic(business.getId()));
     }
 
     @GetMapping("/businesses/locations")

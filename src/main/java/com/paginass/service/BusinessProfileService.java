@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.paginass.config.FeatureKey;
 import com.paginass.config.StorageConstants;
+import com.paginass.dto.AdminBusinessPageDto;
+import com.paginass.dto.AdminBusinessSummaryDto;
 import com.paginass.dto.BusinessMapMarkerDto;
 import com.paginass.dto.BusinessMiniSiteDto;
 import com.paginass.dto.BusinessProfileDetailDto;
@@ -30,6 +32,10 @@ import com.paginass.repository.DirectoryEntryProjection;
 import com.paginass.repository.TagCountProjection;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -60,6 +66,7 @@ public class BusinessProfileService {
 
     private static final int PAGE_SIZE = 10;
     private static final int DIRECTORY_PAGE_SIZE = 50;
+    private static final int ADMIN_PAGE_SIZE = 20;
     private static final long MAX_IMAGE_BYTES = StorageConstants.MAX_BUSINESS_IMAGE_BYTES;
 
     private final BusinessProfileRepository businessProfileRepository;
@@ -230,6 +237,24 @@ public class BusinessProfileService {
         BusinessProfile profile = businessProfileRepository.findById(profileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business profile not found"));
         return toDetailDto(profile);
+    }
+
+    @Transactional(readOnly = true)
+    public AdminBusinessPageDto listBusinessesForAdmin(String search, int page) {
+        Specification<BusinessProfile> spec = (root, query, cb) -> {
+            if (search != null && !search.isBlank()) {
+                return cb.like(cb.lower(root.get("name")), "%" + search.trim().toLowerCase() + "%");
+            }
+            return null;
+        };
+        Page<BusinessProfile> result = businessProfileRepository.findAll(
+                spec, PageRequest.of(page, ADMIN_PAGE_SIZE, Sort.by("name").ascending()));
+        List<AdminBusinessSummaryDto> content = result.getContent().stream()
+                .map(b -> new AdminBusinessSummaryDto(
+                        b.getId(), b.getName(), b.getSlug(),
+                        b.getBizType().name(), b.isClaimed(), b.isActive(), b.getCreatedAt()))
+                .toList();
+        return new AdminBusinessPageDto(content, page, result.getTotalPages(), result.getTotalElements());
     }
 
     @PreAuthorize("""

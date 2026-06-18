@@ -2,7 +2,9 @@ package com.paginass.service;
 
 import com.paginass.dto.FeaturedProductCreateRequestDto;
 import com.paginass.dto.FeaturedProductDto;
+import com.paginass.dto.FeaturedProductsListDto;
 import com.paginass.entity.FeaturedProduct;
+import com.paginass.repository.BusinessConfigurationRepository;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.FeaturedProductRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,7 @@ class FeaturedProductServiceTest {
 
     @Mock private FeaturedProductRepository featuredProductRepository;
     @Mock private BusinessProfileRepository businessProfileRepository;
+    @Mock private BusinessConfigurationRepository businessConfigurationRepository;
     @Mock private StorageService storageService;
 
     @InjectMocks
@@ -55,15 +58,16 @@ class FeaturedProductServiceTest {
         when(featuredProductRepository.findByBusinessIdOrderByDisplayOrderAscCreatedAtAsc(businessId))
                 .thenReturn(List.of());
 
-        List<FeaturedProductDto> result = featuredProductService.getHighlightedBusinessProducts(businessId);
+        FeaturedProductsListDto result = featuredProductService.getHighlightedBusinessProducts(businessId);
 
-        assertThat(result).isEmpty();
+        assertThat(result.products()).isEmpty();
     }
 
     @Test
     void createProduct_savesProductAndReturnsDto() throws IOException {
         when(businessProfileRepository.existsById(businessId)).thenReturn(true);
         when(featuredProductRepository.countByBusinessId(businessId)).thenReturn(2L);
+        when(businessConfigurationRepository.findById(businessId)).thenReturn(Optional.empty());
         when(storageService.saveFile(anyString(), any(), anyString())).thenReturn(null);
         when(storageService.toPublicUrl(anyString())).thenReturn("https://cdn.example.com/products/img.jpg");
 
@@ -92,6 +96,7 @@ class FeaturedProductServiceTest {
     void createProduct_rejectsWhenLimitReached() {
         when(businessProfileRepository.existsById(businessId)).thenReturn(true);
         when(featuredProductRepository.countByBusinessId(businessId)).thenReturn(6L);
+        when(businessConfigurationRepository.findById(businessId)).thenReturn(Optional.empty());
 
         var request = new FeaturedProductCreateRequestDto("Extra", null, null);
 
@@ -106,6 +111,7 @@ class FeaturedProductServiceTest {
     void createProduct_rejectsTooLargeImage() {
         when(businessProfileRepository.existsById(businessId)).thenReturn(true);
         when(featuredProductRepository.countByBusinessId(businessId)).thenReturn(0L);
+        when(businessConfigurationRepository.findById(businessId)).thenReturn(Optional.empty());
 
         byte[] bigBytes = new byte[4 * 1024 * 1024]; // 4 MB
         MockMultipartFile bigImage = new MockMultipartFile("image", "big.jpg", "image/jpeg", bigBytes);

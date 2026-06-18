@@ -207,3 +207,14 @@ resources:
         contributor: denied
         editor: denied
         admin: allowed
+
+  - name: Business Configuration
+    rules:
+      - operation: View per-business configuration overrides
+        contributor: denied
+        editor: denied
+        admin: allowed
+      - operation: Set per-business configuration overrides
+        contributor: denied
+        editor: denied
+        admin: allowed

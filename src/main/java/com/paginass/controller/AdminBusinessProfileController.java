@@ -1,5 +1,6 @@
 package com.paginass.controller;
 
+import com.paginass.dto.AdminBusinessPageDto;
 import com.paginass.dto.BusinessProfileDetailDto;
 import com.paginass.dto.BusinessProfileEditDto;
 import com.paginass.service.BusinessProfileService;
@@ -15,6 +16,13 @@ import java.util.UUID;
 public class AdminBusinessProfileController {
 
     private final BusinessProfileService businessProfileService;
+
+    @GetMapping("/api/admin/business-profiles")
+    public ResponseEntity<AdminBusinessPageDto> listBusinesses(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(businessProfileService.listBusinessesForAdmin(search, page));
+    }
 
     @GetMapping("/api/admin/business-profiles/{id}")
     public ResponseEntity<BusinessProfileDetailDto> getBusinessDetail(@PathVariable UUID id) {

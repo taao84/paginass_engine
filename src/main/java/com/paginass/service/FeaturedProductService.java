@@ -2,7 +2,10 @@ package com.paginass.service;
 
 import com.paginass.dto.FeaturedProductCreateRequestDto;
 import com.paginass.dto.FeaturedProductDto;
+import com.paginass.dto.FeaturedProductsListDto;
 import com.paginass.entity.FeaturedProduct;
+import com.paginass.entity.BusinessConfiguration;
+import com.paginass.repository.BusinessConfigurationRepository;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.FeaturedProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,15 +26,27 @@ import static org.springframework.http.HttpStatus.*;
 @RequiredArgsConstructor
 public class FeaturedProductService {
 
-    private static final int MAX_PRODUCTS = 6;
+    private static final int DEFAULT_MAX_PRODUCTS = 6;
     private static final long MAX_IMAGE_BYTES = 3L * 1024 * 1024;
 
     private final FeaturedProductRepository featuredProductRepository;
     private final BusinessProfileRepository businessProfileRepository;
+    private final BusinessConfigurationRepository businessConfigurationRepository;
     private final StorageService storageService;
 
     @Transactional(readOnly = true)
-    public List<FeaturedProductDto> getHighlightedBusinessProducts(UUID businessId) {
+    public FeaturedProductsListDto getHighlightedBusinessProducts(UUID businessId) {
+        List<FeaturedProductDto> products = featuredProductRepository
+                .findByBusinessIdOrderByDisplayOrderAscCreatedAtAsc(businessId)
+                .stream()
+                .map(this::toDto)
+                .toList();
+        int maxAllowed = resolveMaxProducts(businessId);
+        return new FeaturedProductsListDto(products, maxAllowed);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeaturedProductDto> getHighlightedBusinessProductsPublic(UUID businessId) {
         return featuredProductRepository
                 .findByBusinessIdOrderByDisplayOrderAscCreatedAtAsc(businessId)
                 .stream()
@@ -47,9 +62,10 @@ public class FeaturedProductService {
         if (!businessProfileRepository.existsById(businessId)) {
             throw new ResponseStatusException(NOT_FOUND, "Business not found");
         }
-        if (featuredProductRepository.countByBusinessId(businessId) >= MAX_PRODUCTS) {
+        int maxProducts = resolveMaxProducts(businessId);
+        if (featuredProductRepository.countByBusinessId(businessId) >= maxProducts) {
             throw new ResponseStatusException(UNPROCESSABLE_ENTITY,
-                    "Maximum of " + MAX_PRODUCTS + " featured products allowed");
+                    "Maximum of " + maxProducts + " featured products allowed");
         }
         validateImage(image);
 
@@ -86,6 +102,13 @@ public class FeaturedProductService {
                 // Log but don't fail — the DB record is already removed
             }
         }
+    }
+
+    private int resolveMaxProducts(UUID businessId) {
+        return businessConfigurationRepository.findById(businessId)
+                .map(BusinessConfiguration::getMaxFeaturedProducts)
+                .filter(v -> v != null)
+                .orElse(DEFAULT_MAX_PRODUCTS);
     }
 
     private void validateImage(MultipartFile image) {

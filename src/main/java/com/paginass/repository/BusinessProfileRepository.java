@@ -2,6 +2,7 @@ package com.paginass.repository;
 
 import com.paginass.entity.BusinessProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface BusinessProfileRepository extends JpaRepository<BusinessProfile, UUID> {
+public interface BusinessProfileRepository extends JpaRepository<BusinessProfile, UUID>, JpaSpecificationExecutor<BusinessProfile> {
 
     List<BusinessProfile> findByOwnerIdAndIsClaimedTrueAndIsActiveTrue(UUID ownerId);
 
