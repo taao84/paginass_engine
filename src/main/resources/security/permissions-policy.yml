@@ -218,3 +218,30 @@ resources:
         contributor: denied
         editor: denied
         admin: allowed
+
+  - name: Contact Settings
+    rules:
+      - operation: View contact page settings
+        contributor: denied
+        editor: denied
+        admin: allowed
+      - operation: Edit contact page settings (description, email, phone)
+        contributor: denied
+        editor: denied
+        admin: allowed
+
+  - name: Contact Messages
+    rules:
+      - operation: Submit a contact message (public, no login required)
+        contributor: allowed
+        editor: allowed
+        admin: allowed
+      - operation: View submitted contact messages
+        contributor: denied
+        editor: denied
+        admin: allowed
+      - operation: Mark a contact message as read
+        contributor: denied
+        editor: denied
+        admin: allowed
+

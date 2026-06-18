@@ -16,6 +16,7 @@ public final class FeatureKey {
     public static final String BUSINESS_EVENTS               = "business_events";
     public static final String FEATURED_PRODUCTS             = "featured_products";
     public static final String CAMPAIGNS                      = "campaigns";
+    public static final String CONTACT_PAGE                   = "contact_page";
 
     private FeatureKey() {}
 }
