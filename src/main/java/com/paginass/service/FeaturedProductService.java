@@ -27,12 +27,12 @@ import static org.springframework.http.HttpStatus.*;
 public class FeaturedProductService {
 
     private static final int DEFAULT_MAX_PRODUCTS = 6;
-    private static final long MAX_IMAGE_BYTES = 3L * 1024 * 1024;
 
     private final FeaturedProductRepository featuredProductRepository;
     private final BusinessProfileRepository businessProfileRepository;
     private final BusinessConfigurationRepository businessConfigurationRepository;
     private final StorageService storageService;
+    private final SettingsService settingsService;
 
     @Transactional(readOnly = true)
     public FeaturedProductsListDto getHighlightedBusinessProducts(UUID businessId) {
@@ -42,7 +42,8 @@ public class FeaturedProductService {
                 .map(this::toDto)
                 .toList();
         int maxAllowed = resolveMaxProducts(businessId);
-        return new FeaturedProductsListDto(products, maxAllowed);
+        int maxImageMb = settingsService.getMaxProductImageMb();
+        return new FeaturedProductsListDto(products, maxAllowed, maxImageMb);
     }
 
     @Transactional(readOnly = true)
@@ -115,8 +116,9 @@ public class FeaturedProductService {
         if (image == null || image.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "Product image is required");
         }
-        if (image.getSize() > MAX_IMAGE_BYTES) {
-            throw new ResponseStatusException(BAD_REQUEST, "Image must be 3 MB or smaller");
+        int maxMb = settingsService.getMaxProductImageMb();
+        if (image.getSize() > settingsService.getMaxProductImageBytes()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Image must be " + maxMb + " MB or smaller");
         }
         String contentType = image.getContentType();
         if (contentType == null || !contentType.startsWith(MediaType.IMAGE_JPEG.getType() + "/")

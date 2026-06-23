@@ -305,6 +305,58 @@ class SettingsServiceTest {
         });
     }
 
+    // --- getMaxProductImageMb / updateMaxProductImageMb ---
+
+    @Test
+    void getMaxProductImageMb_noSettingStored_returnsDefault() {
+        when(appSettingRepository.findById("max_product_image_mb")).thenReturn(Optional.empty());
+
+        assertThat(settingsService.getMaxProductImageMb()).isEqualTo(8);
+    }
+
+    @Test
+    void getMaxProductImageMb_settingStored_returnsStoredValue() {
+        when(appSettingRepository.findById("max_product_image_mb"))
+                .thenReturn(Optional.of(settingWith("max_product_image_mb", "12")));
+
+        assertThat(settingsService.getMaxProductImageMb()).isEqualTo(12);
+    }
+
+    @Test
+    void updateMaxProductImageMb_validValue_savesCorrectly() {
+        when(appSettingRepository.findById("max_product_image_mb")).thenReturn(Optional.empty());
+        when(appSettingRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        settingsService.updateMaxProductImageMb(10);
+
+        ArgumentCaptor<AppSetting> captor = ArgumentCaptor.forClass(AppSetting.class);
+        verify(appSettingRepository).save(captor.capture());
+        assertThat(captor.getValue().getSettingKey()).isEqualTo("max_product_image_mb");
+        assertThat(captor.getValue().getSettingValue()).isEqualTo("10");
+    }
+
+    @Test
+    void updateMaxProductImageMb_zero_throws400() {
+        assertThatThrownBy(() -> settingsService.updateMaxProductImageMb(0))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+    }
+
+    @Test
+    void updateMaxProductImageMb_aboveMax_throws400() {
+        assertThatThrownBy(() -> settingsService.updateMaxProductImageMb(21))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+    }
+
+    @Test
+    void getMaxProductImageBytes_returnsValueInBytes() {
+        when(appSettingRepository.findById("max_product_image_mb"))
+                .thenReturn(Optional.of(settingWith("max_product_image_mb", "8")));
+
+        assertThat(settingsService.getMaxProductImageBytes()).isEqualTo(8L * 1024 * 1024);
+    }
+
     // --- helpers ---
 
     private AppSetting settingWith(String subPath) {

@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,6 +41,7 @@ class FeaturedProductLimitTest {
     @Mock private BusinessProfileRepository businessProfileRepository;
     @Mock private BusinessConfigurationRepository businessConfigurationRepository;
     @Mock private StorageService storageService;
+    @Mock private SettingsService settingsService;
 
     @InjectMocks
     private FeaturedProductService featuredProductService;
@@ -52,6 +54,8 @@ class FeaturedProductLimitTest {
         businessId = UUID.randomUUID();
         validImage = new MockMultipartFile(
                 "image", "product.jpg", "image/jpeg", new byte[1024]);
+        lenient().when(settingsService.getMaxProductImageMb()).thenReturn(8);
+        lenient().when(settingsService.getMaxProductImageBytes()).thenReturn(8L * 1024 * 1024);
     }
 
     // -------------------------------------------------------------------------

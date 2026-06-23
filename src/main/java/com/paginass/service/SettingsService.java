@@ -25,6 +25,11 @@ public class SettingsService {
 
     private static final String ADMIN_NOTIFICATION_EMAIL_KEY = "admin_notification_email";
 
+    private static final String MAX_PRODUCT_IMAGE_MB_KEY = "max_product_image_mb";
+    private static final int DEFAULT_PRODUCT_IMAGE_MB = 8;
+    private static final int MIN_PRODUCT_IMAGE_MB = 1;
+    private static final int MAX_PRODUCT_IMAGE_MB = 20;
+
     private static final String BANNER_KEY = "banner";
     private static final String OVERLAY_COLOR_KEY = "banner_overlay_color";
     private static final String OVERLAY_OPACITY_KEY = "banner_overlay_opacity";
@@ -50,6 +55,27 @@ public class SettingsService {
         return appSettingRepository.findById(ADMIN_NOTIFICATION_EMAIL_KEY)
                 .map(AppSetting::getSettingValue)
                 .filter(v -> !v.isBlank());
+    }
+
+    @Transactional(readOnly = true)
+    public int getMaxProductImageMb() {
+        return appSettingRepository.findById(MAX_PRODUCT_IMAGE_MB_KEY)
+                .map(s -> Integer.parseInt(s.getSettingValue()))
+                .orElse(DEFAULT_PRODUCT_IMAGE_MB);
+    }
+
+    @Transactional(readOnly = true)
+    public long getMaxProductImageBytes() {
+        return (long) getMaxProductImageMb() * 1024 * 1024;
+    }
+
+    @Transactional
+    public void updateMaxProductImageMb(int mb) {
+        if (mb < MIN_PRODUCT_IMAGE_MB || mb > MAX_PRODUCT_IMAGE_MB) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Product image size must be between " + MIN_PRODUCT_IMAGE_MB + " and " + MAX_PRODUCT_IMAGE_MB + " MB");
+        }
+        saveSetting(MAX_PRODUCT_IMAGE_MB_KEY, String.valueOf(mb));
     }
 
     @Transactional

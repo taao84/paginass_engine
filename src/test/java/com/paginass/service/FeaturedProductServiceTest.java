@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +40,7 @@ class FeaturedProductServiceTest {
     @Mock private BusinessProfileRepository businessProfileRepository;
     @Mock private BusinessConfigurationRepository businessConfigurationRepository;
     @Mock private StorageService storageService;
+    @Mock private SettingsService settingsService;
 
     @InjectMocks
     private FeaturedProductService featuredProductService;
@@ -51,6 +53,8 @@ class FeaturedProductServiceTest {
         businessId = UUID.randomUUID();
         validImage = new MockMultipartFile(
                 "image", "product.jpg", "image/jpeg", new byte[1024]);
+        lenient().when(settingsService.getMaxProductImageMb()).thenReturn(8);
+        lenient().when(settingsService.getMaxProductImageBytes()).thenReturn(8L * 1024 * 1024);
     }
 
     @Test
@@ -113,14 +117,14 @@ class FeaturedProductServiceTest {
         when(featuredProductRepository.countByBusinessId(businessId)).thenReturn(0L);
         when(businessConfigurationRepository.findById(businessId)).thenReturn(Optional.empty());
 
-        byte[] bigBytes = new byte[4 * 1024 * 1024]; // 4 MB
+        byte[] bigBytes = new byte[9 * 1024 * 1024]; // 9 MB — exceeds the 8 MB default
         MockMultipartFile bigImage = new MockMultipartFile("image", "big.jpg", "image/jpeg", bigBytes);
 
         var request = new FeaturedProductCreateRequestDto("Product", null, null);
 
         assertThatThrownBy(() -> featuredProductService.createHighlightedBusinessProduct(businessId, request, bigImage))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("3 MB");
+                .hasMessageContaining("8 MB");
     }
 
     @Test

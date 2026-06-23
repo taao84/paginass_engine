@@ -1,5 +1,6 @@
 package com.paginass.service;
 
+import com.paginass.dto.ContactMessagePageDto;
 import com.paginass.dto.ContactMessageRequestDto;
 import com.paginass.dto.ContactMessageSummaryDto;
 import com.paginass.dto.ContactSettingsDto;
@@ -21,6 +22,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -92,13 +96,14 @@ class ContactServiceTest {
 
         ContactMessage old = buildMessage("Viejo", OffsetDateTime.now().minusDays(2));
         ContactMessage recent = buildMessage("Reciente", OffsetDateTime.now());
-        when(contactMessageRepository.findAllByOrderBySubmittedAtDesc()).thenReturn(List.of(recent, old));
+        when(contactMessageRepository.findAllByOrderBySubmittedAtDesc(any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(recent, old)));
 
-        List<ContactMessageSummaryDto> result = contactService.listMessages();
+        ContactMessagePageDto result = contactService.listMessages(0);
 
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).subject()).isEqualTo("Reciente");
-        assertThat(result.get(1).subject()).isEqualTo("Viejo");
+        assertThat(result.content()).hasSize(2);
+        assertThat(result.content().get(0).subject()).isEqualTo("Reciente");
+        assertThat(result.content().get(1).subject()).isEqualTo("Viejo");
     }
 
     // --- markRead ---

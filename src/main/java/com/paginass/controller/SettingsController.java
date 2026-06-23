@@ -4,6 +4,7 @@ import com.paginass.dto.BannerHistoryEntryDto;
 import com.paginass.dto.BannerOverlayRequestDto;
 import com.paginass.dto.BannerSettingDto;
 import com.paginass.dto.NotificationEmailDto;
+import com.paginass.dto.ProductImageSizeDto;
 import com.paginass.service.SettingsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -79,6 +80,17 @@ public class SettingsController {
     @DeleteMapping("/admin/settings/banner/history/{id}")
     public ResponseEntity<Void> deleteHistoryEntry(@PathVariable UUID id) {
         settingsService.deleteHistoryEntry(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/admin/settings/product-image-size")
+    public ResponseEntity<ProductImageSizeDto> getProductImageSize() {
+        return ResponseEntity.ok(new ProductImageSizeDto(settingsService.getMaxProductImageMb()));
+    }
+
+    @PutMapping("/admin/settings/product-image-size")
+    public ResponseEntity<Void> updateProductImageSize(@RequestBody ProductImageSizeDto request) {
+        settingsService.updateMaxProductImageMb(request.maxMb());
         return ResponseEntity.noContent().build();
     }
 }
