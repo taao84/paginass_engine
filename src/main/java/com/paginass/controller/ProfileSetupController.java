@@ -31,7 +31,7 @@ public class ProfileSetupController {
     private final UserRepository userRepository;
     private final LocalAuthService localAuthService;
 
-    @PreAuthorize("hasAnyRole('EDITOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('EDITOR','ADMIN','CONTRIBUTOR')")
     @PostMapping("/setup")
     public ResponseEntity<AuthResponseDto> setup(
             @Valid @RequestBody ProfileSetupRequestDto request,

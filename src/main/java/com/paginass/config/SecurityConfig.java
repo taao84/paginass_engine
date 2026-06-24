@@ -130,7 +130,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/profile/businesses").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/profile/businesses").hasRole("CONTRIBUTOR")
-                .requestMatchers(HttpMethod.POST, "/api/profile/setup").hasAnyRole("EDITOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/profile/setup").hasAnyRole("EDITOR", "ADMIN", "CONTRIBUTOR")
                 .requestMatchers("/api/ads/**").authenticated()
                 .requestMatchers("/api/business/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/contests/**").permitAll()
