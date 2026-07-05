@@ -27,6 +27,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +48,7 @@ class CampaignServiceTest {
     @Mock private BusinessProfileRepository businessProfileRepository;
     @Mock private UserRepository userRepository;
     @Mock private StorageService storageService;
+    @Mock private AppTimeService appTimeService;
 
     @InjectMocks
     private CampaignService campaignService;
@@ -67,6 +69,12 @@ class CampaignServiceTest {
 
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
         when(campaignBusinessRepository.findByCampaignIdOrderByDisplayOrderAsc(any())).thenReturn(List.of());
+
+        when(appTimeService.now()).thenReturn(OffsetDateTime.now());
+        when(appTimeService.toInstant(any())).thenAnswer(inv ->
+                ((LocalDateTime) inv.getArgument(0)).atOffset(java.time.ZoneOffset.UTC));
+        when(appTimeService.formatDisplay(any())).thenReturn("5 de julio de 2026, 4:00 p. m.");
+        when(appTimeService.formatLocalInput(any())).thenReturn("2026-07-05T16:00");
     }
 
     @AfterEach
@@ -83,7 +91,8 @@ class CampaignServiceTest {
                 "Mi Concurso",
                 "Descripción",
                 CampaignType.PHOTO_CONTEST,
-                OffsetDateTime.now().plusDays(30),
+                null,
+                LocalDateTime.now().plusDays(30),
                 "<p>Reglas <strong>importantes</strong></p>",
                 "<p>Condiciones</p>",
                 "<p>🏆 Premio: viaje a la ciudad</p>"
@@ -94,7 +103,7 @@ class CampaignServiceTest {
         assertThat(result.name()).isEqualTo("Mi Concurso");
         assertThat(result.status()).isEqualTo(CampaignStatus.DRAFT);
         assertThat(result.slug()).isEqualTo("mi-concurso");
-        assertThat(result.startDatetime()).isNull();
+        assertThat(result.startDatetimeDisplay()).isNull();
         assertThat(result.photoContestDetails()).isNotNull();
         assertThat(result.photoContestDetails().rules()).contains("<strong>importantes</strong>");
     }
@@ -105,8 +114,8 @@ class CampaignServiceTest {
         when(campaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CampaignCreateRequestDto request = new CampaignCreateRequestDto(
-                "Concurso", null, CampaignType.PHOTO_CONTEST,
-                OffsetDateTime.now().plusDays(10),
+                "Concurso", null, CampaignType.PHOTO_CONTEST, null,
+                LocalDateTime.now().plusDays(10),
                 "<p>Rules</p><script>alert('xss')</script>",
                 "<p>Conditions</p>", null
         );
@@ -123,8 +132,8 @@ class CampaignServiceTest {
         when(campaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CampaignCreateRequestDto request = new CampaignCreateRequestDto(
-                "Concurso", null, CampaignType.PHOTO_CONTEST,
-                OffsetDateTime.now().plusDays(10),
+                "Concurso", null, CampaignType.PHOTO_CONTEST, null,
+                LocalDateTime.now().plusDays(10),
                 null, null, "<p>🏆 Premio<script>evil()</script></p>"
         );
 
@@ -142,12 +151,43 @@ class CampaignServiceTest {
         when(campaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CampaignCreateRequestDto request = new CampaignCreateRequestDto(
-                "Mi Concurso", null, CampaignType.PHOTO_CONTEST,
-                OffsetDateTime.now().plusDays(10), null, null, null);
+                "Mi Concurso", null, CampaignType.PHOTO_CONTEST, null,
+                LocalDateTime.now().plusDays(10), null, null, null);
 
         CampaignDto result = campaignService.create(request, null);
 
         assertThat(result.slug()).isEqualTo("mi-concurso-2");
+    }
+
+    @Test
+    void update_adminProvidesStartDatetime_setsIt() {
+        Campaign campaign = buildCampaign(CampaignStatus.ACTIVE);
+        when(campaignRepository.findById(campaign.getId())).thenReturn(Optional.of(campaign));
+        LocalDateTime providedStart = LocalDateTime.of(2026, 6, 1, 9, 0);
+        OffsetDateTime expectedInstant = providedStart.atOffset(java.time.ZoneOffset.UTC);
+
+        CampaignCreateRequestDto request = new CampaignCreateRequestDto(
+                "Test", null, CampaignType.PHOTO_CONTEST, providedStart,
+                LocalDateTime.now().plusDays(10), null, null, null);
+
+        campaignService.update(campaign.getId(), request, null);
+
+        assertThat(campaign.getStartDatetime()).isEqualTo(expectedInstant);
+    }
+
+    @Test
+    void update_nullStartDatetime_clearsExistingValue() {
+        Campaign campaign = buildCampaign(CampaignStatus.ACTIVE);
+        campaign.setStartDatetime(OffsetDateTime.now().minusDays(5));
+        when(campaignRepository.findById(campaign.getId())).thenReturn(Optional.of(campaign));
+
+        CampaignCreateRequestDto request = new CampaignCreateRequestDto(
+                "Test", null, CampaignType.PHOTO_CONTEST, null,
+                LocalDateTime.now().plusDays(10), null, null, null);
+
+        campaignService.update(campaign.getId(), request, null);
+
+        assertThat(campaign.getStartDatetime()).isNull();
     }
 
     @Test

@@ -52,6 +52,7 @@ class PhotoContestServiceTest {
     @Mock private CampaignRepository campaignRepository;
     @Mock private UserRepository userRepository;
     @Mock private StorageService storageService;
+    @Mock private AppTimeService appTimeService;
 
     @InjectMocks
     private PhotoContestService photoContestService;
@@ -82,6 +83,7 @@ class PhotoContestServiceTest {
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(contributor));
         when(campaignRepository.findBySlug("foto-2025")).thenReturn(Optional.of(activeCampaign));
         when(campaignRepository.findById(activeCampaign.getId())).thenAnswer(inv -> Optional.of(activeCampaign));
+        when(appTimeService.now()).thenReturn(OffsetDateTime.now());
     }
 
     @AfterEach
@@ -146,6 +148,23 @@ class PhotoContestServiceTest {
                 photo))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("no está aceptando");
+    }
+
+    @Test
+    void submitEntry_pastEndDatetime_closesCampaignAndRejects() {
+        activeCampaign.setEndDatetime(OffsetDateTime.now().minusMinutes(1));
+
+        MockMultipartFile photo = new MockMultipartFile("photo", "img.jpg", "image/jpeg", new byte[10]);
+
+        assertThatThrownBy(() -> photoContestService.submitEntry(
+                "foto-2025",
+                new PhotoContestEntryCreateRequestDto("Title", null),
+                photo))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no está aceptando");
+
+        assertThat(activeCampaign.getStatus()).isEqualTo(CampaignStatus.ENDED);
+        verify(campaignRepository).save(activeCampaign);
     }
 
     @Test
@@ -216,6 +235,49 @@ class PhotoContestServiceTest {
         assertThatThrownBy(() -> photoContestService.toggleLike(entry.getId()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No puedes votar");
+    }
+
+    @Test
+    void toggleLike_campaignAlreadyEnded_rejectsVote() {
+        activeCampaign.setStatus(CampaignStatus.ENDED);
+        PhotoContestEntry entry = buildEntry(UUID.randomUUID());
+        when(entryRepository.findById(entry.getId())).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> photoContestService.toggleLike(entry.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ha finalizado");
+
+        verify(likeRepository, never()).save(any());
+    }
+
+    @Test
+    void toggleLike_pastEndDatetime_closesCampaignAndRejectsVote() {
+        activeCampaign.setEndDatetime(OffsetDateTime.now().minusMinutes(1));
+        PhotoContestEntry entry = buildEntry(UUID.randomUUID());
+        when(entryRepository.findById(entry.getId())).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> photoContestService.toggleLike(entry.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ha finalizado");
+
+        assertThat(activeCampaign.getStatus()).isEqualTo(CampaignStatus.ENDED);
+        verify(campaignRepository).save(activeCampaign);
+        verify(likeRepository, never()).save(any());
+    }
+
+    @Test
+    void toggleLike_withinWindow_acceptsVote() {
+        PhotoContestEntry entry = buildEntry(UUID.randomUUID());
+        when(entryRepository.findById(entry.getId())).thenReturn(Optional.of(entry));
+        when(likeRepository.findByEntryIdAndUserId(entry.getId(), contributor.getId()))
+                .thenReturn(Optional.empty());
+        when(likeRepository.countByEntryId(entry.getId())).thenReturn(1L);
+
+        PhotoContestLikeDto result = photoContestService.toggleLike(entry.getId());
+
+        assertThat(result.hasLiked()).isTrue();
+        assertThat(activeCampaign.getStatus()).isEqualTo(CampaignStatus.ACTIVE);
+        verify(campaignRepository, never()).save(any());
     }
 
     @Test

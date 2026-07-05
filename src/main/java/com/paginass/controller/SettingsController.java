@@ -5,6 +5,10 @@ import com.paginass.dto.BannerOverlayRequestDto;
 import com.paginass.dto.BannerSettingDto;
 import com.paginass.dto.NotificationEmailDto;
 import com.paginass.dto.ProductImageSizeDto;
+import com.paginass.dto.TimezoneDto;
+import com.paginass.job.DynamicScheduler;
+import com.paginass.service.AppTimeService;
+import com.paginass.service.SchedulerTimeService;
 import com.paginass.service.SettingsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +34,21 @@ import java.util.UUID;
 public class SettingsController {
 
     private final SettingsService settingsService;
+    private final AppTimeService appTimeService;
+    private final SchedulerTimeService schedulerTimeService;
+    private final DynamicScheduler dynamicScheduler;
+
+    @GetMapping("/admin/settings/timezone")
+    public ResponseEntity<TimezoneDto> getTimezone() {
+        return ResponseEntity.ok(new TimezoneDto(appTimeService.getTimezoneId()));
+    }
+
+    @PutMapping("/admin/settings/timezone")
+    public ResponseEntity<TimezoneDto> updateTimezone(@RequestBody TimezoneDto request) {
+        String saved = appTimeService.updateTimezone(request.timezone());
+        dynamicScheduler.reschedule(schedulerTimeService.getSchedulerTime());
+        return ResponseEntity.ok(new TimezoneDto(saved));
+    }
 
     @GetMapping("/admin/settings/notification-email")
     public ResponseEntity<NotificationEmailDto> getNotificationEmail() {

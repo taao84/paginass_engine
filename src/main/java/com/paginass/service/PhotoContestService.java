@@ -37,6 +37,7 @@ public class PhotoContestService {
     private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final AppTimeService appTimeService;
 
     @Transactional
     public PhotoContestEntryDto submitEntry(String campaignSlug,
@@ -74,6 +75,12 @@ public class PhotoContestService {
     public PhotoContestLikeDto toggleLike(UUID entryId) {
         User user = resolveCurrentUser();
         PhotoContestEntry entry = findEntryById(entryId);
+        Campaign campaign = campaignRepository.findById(entry.getCampaignId())
+                .orElseThrow(() -> new IllegalStateException("Campaign not found: " + entry.getCampaignId()));
+        closeIfExpired(campaign);
+        if (campaign.getStatus() != CampaignStatus.ACTIVE) {
+            throw new IllegalStateException("La votación para este concurso ha finalizado.");
+        }
 
         if (entry.getUserId().equals(user.getId())) {
             throw new IllegalStateException("No puedes votar por tu propia foto.");
@@ -164,10 +171,19 @@ public class PhotoContestService {
     private Campaign findActiveCampaign(String slug) {
         Campaign campaign = campaignRepository.findBySlug(slug)
                 .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + slug));
+        closeIfExpired(campaign);
         if (campaign.getStatus() != CampaignStatus.ACTIVE) {
             throw new IllegalStateException("Este concurso no está aceptando participaciones en este momento.");
         }
         return campaign;
+    }
+
+    private void closeIfExpired(Campaign campaign) {
+        if (campaign.getStatus() == CampaignStatus.ACTIVE && !appTimeService.now().isBefore(campaign.getEndDatetime())) {
+            campaign.setStatus(CampaignStatus.ENDED);
+            campaign.setUpdatedAt(appTimeService.now());
+            campaignRepository.save(campaign);
+        }
     }
 
     private PhotoContestEntry findEntryById(UUID entryId) {

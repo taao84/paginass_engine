@@ -26,7 +26,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.text.Normalizer;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -42,6 +41,7 @@ public class CampaignService {
     private final BusinessProfileRepository businessProfileRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final AppTimeService appTimeService;
 
     @Transactional
     public CampaignDto create(CampaignCreateRequestDto request, MultipartFile image) {
@@ -53,7 +53,7 @@ public class CampaignService {
         campaign.setCampaignType(request.campaignType());
         campaign.setStatus(CampaignStatus.DRAFT);
         campaign.setSlug(generateUniqueSlug(request.name()));
-        campaign.setEndDatetime(request.endDatetime());
+        campaign.setEndDatetime(appTimeService.toInstant(request.endDatetime()));
         campaign.setCreatedBy(admin.getId());
         campaignRepository.save(campaign);
 
@@ -79,8 +79,9 @@ public class CampaignService {
         Campaign campaign = findCampaignById(id);
         campaign.setName(request.name());
         campaign.setDescription(request.description());
-        campaign.setEndDatetime(request.endDatetime());
-        campaign.setUpdatedAt(OffsetDateTime.now());
+        campaign.setStartDatetime(request.startDatetime() != null ? appTimeService.toInstant(request.startDatetime()) : null);
+        campaign.setEndDatetime(appTimeService.toInstant(request.endDatetime()));
+        campaign.setUpdatedAt(appTimeService.now());
 
         if (image != null && !image.isEmpty()) {
             if (campaign.getImageSubpath() != null) {
@@ -106,9 +107,9 @@ public class CampaignService {
         Campaign campaign = findCampaignById(id);
         campaign.setStatus(request.status());
         if (request.status() == CampaignStatus.ACTIVE && campaign.getStartDatetime() == null) {
-            campaign.setStartDatetime(OffsetDateTime.now());
+            campaign.setStartDatetime(appTimeService.now());
         }
-        campaign.setUpdatedAt(OffsetDateTime.now());
+        campaign.setUpdatedAt(appTimeService.now());
         return toDto(campaign);
     }
 
@@ -236,6 +237,13 @@ public class CampaignService {
                 ))
                 .collect(Collectors.toList());
 
+        String startDatetimeDisplay = campaign.getStartDatetime() != null
+                ? appTimeService.formatDisplay(campaign.getStartDatetime())
+                : null;
+        String startDatetimeInput = campaign.getStartDatetime() != null
+                ? appTimeService.formatLocalInput(campaign.getStartDatetime())
+                : null;
+
         return new CampaignDto(
                 campaign.getId(),
                 campaign.getName(),
@@ -244,8 +252,10 @@ public class CampaignService {
                 campaign.getStatus(),
                 campaign.getSlug(),
                 imageUrl,
-                campaign.getStartDatetime(),
-                campaign.getEndDatetime(),
+                startDatetimeDisplay,
+                startDatetimeInput,
+                appTimeService.formatDisplay(campaign.getEndDatetime()),
+                appTimeService.formatLocalInput(campaign.getEndDatetime()),
                 detailsDto,
                 businesses
         );

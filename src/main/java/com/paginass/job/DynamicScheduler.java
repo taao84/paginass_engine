@@ -1,5 +1,6 @@
 package com.paginass.job;
 
+import com.paginass.service.AppTimeService;
 import com.paginass.service.JobSchedulerService;
 import com.paginass.service.SchedulerTimeService;
 import jakarta.annotation.PostConstruct;
@@ -17,11 +18,10 @@ import java.util.concurrent.ScheduledFuture;
 @Slf4j
 public class DynamicScheduler {
 
-    private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
-
     private final TaskScheduler taskScheduler;
     private final SchedulerTimeService schedulerTimeService;
     private final JobSchedulerService jobSchedulerService;
+    private final AppTimeService appTimeService;
 
     private ScheduledFuture<?> scheduledFuture;
 
@@ -44,11 +44,12 @@ public class DynamicScheduler {
         int hour = Integer.parseInt(parts[0]);
         int minute = Integer.parseInt(parts[1]);
         String cron = String.format("0 %d %d * * *", minute, hour);
+        ZoneId zone = appTimeService.getZoneId();
         scheduledFuture = taskScheduler.schedule(
                 jobSchedulerService::runDailyJobs,
-                new CronTrigger(cron, BOGOTA)
+                new CronTrigger(cron, zone)
         );
-        log.info("Daily job scheduler configured for {}:{} America/Bogota (cron={})",
-                String.format("%02d", hour), String.format("%02d", minute), cron);
+        log.info("Daily job scheduler configured for {}:{} {} (cron={})",
+                String.format("%02d", hour), String.format("%02d", minute), zone, cron);
     }
 }

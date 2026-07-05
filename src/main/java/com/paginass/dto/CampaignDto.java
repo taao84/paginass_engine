@@ -3,7 +3,6 @@ package com.paginass.dto;
 import com.paginass.entity.CampaignStatus;
 import com.paginass.entity.CampaignType;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,8 +14,10 @@ public record CampaignDto(
         CampaignStatus status,
         String slug,
         String imageUrl,
-        OffsetDateTime startDatetime,
-        OffsetDateTime endDatetime,
+        String startDatetimeDisplay,
+        String startDatetimeInput,
+        String endDatetimeDisplay,
+        String endDatetimeInput,
         PhotoContestDetailsDto photoContestDetails,
         List<CampaignBusinessDto> linkedBusinesses
 ) {}
