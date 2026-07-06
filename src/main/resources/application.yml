@@ -73,8 +73,10 @@ management:
     web:
       exposure:
         include: health,info
+  endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
+      roles: ADMIN
 
 app:
   cors:
