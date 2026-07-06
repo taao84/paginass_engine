@@ -14,5 +14,7 @@ public record PhotoContestEntryDto(
         long likeCount,
         boolean hasLiked,
         boolean disabled,
+        Integer winnerRank,
+        boolean notified,
         OffsetDateTime createdAt
 ) {}

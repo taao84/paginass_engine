@@ -14,6 +14,8 @@ import com.paginass.repository.PhotoContestLikeRepository;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +42,10 @@ public class PhotoContestService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final AppTimeService appTimeService;
+    private final MailService mailService;
+
+    @Autowired @Lazy
+    private PhotoContestService self;
 
     @Transactional
     public PhotoContestEntryDto submitEntry(String campaignSlug,
@@ -168,6 +176,85 @@ public class PhotoContestService {
         entryRepository.delete(entry);
     }
 
+    @Transactional
+    public List<PhotoContestEntryDto> getResults(String campaignSlug) {
+        Campaign campaign = campaignRepository.findBySlug(campaignSlug)
+                .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignSlug));
+        closeIfExpired(campaign);
+        if (!isEndedOrClosed(campaign.getStatus())) {
+            throw new IllegalStateException("Los resultados de este concurso aún no están disponibles.");
+        }
+
+        List<PhotoContestEntry> winners = entryRepository.findByCampaignIdAndWinnerRankIsNotNullOrderByWinnerRankAsc(campaign.getId());
+        return winners.stream()
+                .map(entry -> {
+                    User author = userRepository.findById(entry.getUserId())
+                            .orElseThrow(() -> new IllegalStateException("User not found: " + entry.getUserId()));
+                    long likeCount = likeRepository.countByEntryId(entry.getId());
+                    return toDto(entry, author, likeCount, false);
+                }).toList();
+    }
+
+    @Transactional
+    public PhotoContestEntryDto setWinnerRank(UUID campaignId, UUID entryId, Integer rank) {
+        PhotoContestEntry entry = findEntryById(entryId);
+        if (!entry.getCampaignId().equals(campaignId)) {
+            throw new IllegalArgumentException("Entry does not belong to campaign: " + campaignId);
+        }
+
+        if (rank != null) {
+            boolean rankTaken = entryRepository.findByCampaignIdAndWinnerRankIsNotNullOrderByWinnerRankAsc(campaignId).stream()
+                    .anyMatch(e -> rank.equals(e.getWinnerRank()) && !e.getId().equals(entryId));
+            if (rankTaken) {
+                throw new IllegalStateException("El puesto " + rank + " ya fue asignado a otra foto.");
+            }
+        }
+
+        entry.setWinnerRank(rank);
+        User author = userRepository.findById(entry.getUserId())
+                .orElseThrow(() -> new IllegalStateException("User not found: " + entry.getUserId()));
+        long likeCount = likeRepository.countByEntryId(entry.getId());
+        return toDto(entry, author, likeCount, false);
+    }
+
+    public int notifyWinners(UUID campaignId, String subject, String message, List<UUID> entryIds) {
+        List<String> recipientEmails = self.prepareWinnerNotifications(campaignId, entryIds);
+        for (String email : recipientEmails) {
+            mailService.sendCampaignMessage(email, subject, message);
+        }
+        return recipientEmails.size();
+    }
+
+    @Transactional
+    public List<String> prepareWinnerNotifications(UUID campaignId, List<UUID> entryIds) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
+        if (!isEndedOrClosed(campaign.getStatus())) {
+            throw new IllegalStateException("Solo se puede notificar a los ganadores una vez finalizado el concurso.");
+        }
+
+        OffsetDateTime now = appTimeService.now();
+        List<String> emails = new ArrayList<>();
+        for (UUID entryId : entryIds) {
+            PhotoContestEntry entry = findEntryById(entryId);
+            if (!entry.getCampaignId().equals(campaignId)) {
+                throw new IllegalArgumentException("Entry does not belong to campaign: " + campaignId);
+            }
+            if (entry.getWinnerRank() == null) {
+                throw new IllegalStateException("Solo se puede notificar a fotos marcadas como ganadoras.");
+            }
+            User author = userRepository.findById(entry.getUserId())
+                    .orElseThrow(() -> new IllegalStateException("User not found: " + entry.getUserId()));
+            entry.setNotifiedAt(now);
+            emails.add(author.getEmail());
+        }
+        return emails;
+    }
+
+    private boolean isEndedOrClosed(CampaignStatus status) {
+        return status == CampaignStatus.ENDED || status == CampaignStatus.CLOSED;
+    }
+
     private Campaign findActiveCampaign(String slug) {
         Campaign campaign = campaignRepository.findBySlug(slug)
                 .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + slug));
@@ -228,6 +315,8 @@ public class PhotoContestService {
                 likeCount,
                 hasLiked,
                 entry.isDisabled(),
+                entry.getWinnerRank(),
+                entry.getNotifiedAt() != null,
                 entry.getCreatedAt()
         );
     }

@@ -19,6 +19,7 @@ import com.paginass.repository.AdvertisementRepository;
 import com.paginass.repository.BusinessProfileRepository;
 import com.paginass.repository.CampaignRepository;
 import com.paginass.repository.HighlightRepository;
+import com.paginass.repository.PhotoContestEntryRepository;
 import com.paginass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class HighlightService {
     private final BusinessProfileRepository businessProfileRepository;
     private final AdvertisementRepository advertisementRepository;
     private final CampaignRepository campaignRepository;
+    private final PhotoContestEntryRepository photoContestEntryRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
 
@@ -110,7 +112,8 @@ public class HighlightService {
             return List.of();
         }
         return campaignRepository
-                .findByStatusAndNameContainingIgnoreCaseOrderByNameAsc(CampaignStatus.ACTIVE, query.trim())
+                .findByStatusInAndNameContainingIgnoreCaseOrderByNameAsc(
+                        List.of(CampaignStatus.ACTIVE, CampaignStatus.ENDED), query.trim())
                 .stream()
                 .map(c -> new HighlightableCampaignDto(c.getId(), c.getName(), CAMPAIGN_BADGE))
                 .toList();
@@ -144,9 +147,17 @@ public class HighlightService {
                     .filter(a -> a.getExpiresAt() == null || a.getExpiresAt().isAfter(Instant.now()))
                     .map(a -> buildAdCard(highlight, a));
             case CAMPAIGN -> campaignRepository.findById(highlight.getReferenceId())
-                    .filter(c -> c.getStatus() == CampaignStatus.ACTIVE)
+                    .filter(this::isCampaignHighlightable)
                     .map(c -> buildCampaignCard(highlight, c));
         };
+    }
+
+    private boolean isCampaignHighlightable(Campaign campaign) {
+        if (campaign.getStatus() == CampaignStatus.ACTIVE) {
+            return true;
+        }
+        return campaign.getStatus() == CampaignStatus.ENDED
+                && photoContestEntryRepository.existsByCampaignIdAndWinnerRankIsNotNull(campaign.getId());
     }
 
     private HighlightCardDto buildBusinessCard(Highlight highlight, BusinessProfile business) {
@@ -188,12 +199,15 @@ public class HighlightService {
         String thumbnailUrl = campaign.getImageSubpath() != null
                 ? storageService.toPublicUrl(campaign.getImageSubpath())
                 : null;
+        String linkPath = campaign.getStatus() == CampaignStatus.ENDED
+                ? "/concursos/" + campaign.getSlug() + "/resultados"
+                : "/concursos/" + campaign.getSlug();
         return new HighlightCardDto(
                 highlight.getId(),
                 HighlightType.CAMPAIGN,
                 campaign.getName(),
                 thumbnailUrl,
-                "/concursos/" + campaign.getSlug(),
+                linkPath,
                 CAMPAIGN_BADGE,
                 campaign.getDescription() != null ? campaign.getDescription() : ""
         );

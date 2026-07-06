@@ -28,6 +28,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
@@ -39,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,6 +55,7 @@ class PhotoContestServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private StorageService storageService;
     @Mock private AppTimeService appTimeService;
+    @Mock private MailService mailService;
 
     @InjectMocks
     private PhotoContestService photoContestService;
@@ -70,6 +73,7 @@ class PhotoContestServiceTest {
 
         activeCampaign = new Campaign();
         activeCampaign.setId(UUID.randomUUID());
+        activeCampaign.setName("Concurso de Fotos");
         activeCampaign.setSlug("foto-2025");
         activeCampaign.setStatus(CampaignStatus.ACTIVE);
         activeCampaign.setStartDatetime(OffsetDateTime.now().minusDays(1));
@@ -84,6 +88,8 @@ class PhotoContestServiceTest {
         when(campaignRepository.findBySlug("foto-2025")).thenReturn(Optional.of(activeCampaign));
         when(campaignRepository.findById(activeCampaign.getId())).thenAnswer(inv -> Optional.of(activeCampaign));
         when(appTimeService.now()).thenReturn(OffsetDateTime.now());
+
+        ReflectionTestUtils.setField(photoContestService, "self", photoContestService);
     }
 
     @AfterEach
@@ -433,6 +439,206 @@ class PhotoContestServiceTest {
         PhotoContestEntryDto result = photoContestService.getEntry(entry.getId());
 
         assertThat(result).isNotNull();
+    }
+
+    // --- getResults ---
+
+    @Test
+    void getResults_endedCampaignReturnsWinnersSortedByRank() {
+        activeCampaign.setStatus(CampaignStatus.ENDED);
+        UUID authorId = UUID.randomUUID();
+        PhotoContestEntry winner = buildEntry(authorId);
+        winner.setWinnerRank(1);
+        User author = new User();
+        author.setId(authorId);
+        author.setEmail("author@example.com");
+        when(entryRepository.findByCampaignIdAndWinnerRankIsNotNullOrderByWinnerRankAsc(activeCampaign.getId()))
+                .thenReturn(List.of(winner));
+        when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
+        when(storageService.toPublicUrl(anyString())).thenReturn("https://cdn.example.com/img.jpg");
+        when(likeRepository.countByEntryId(winner.getId())).thenReturn(3L);
+
+        List<PhotoContestEntryDto> result = photoContestService.getResults("foto-2025");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).winnerRank()).isEqualTo(1);
+    }
+
+    @Test
+    void getResults_stillActiveCampaign_throws() {
+        assertThatThrownBy(() -> photoContestService.getResults("foto-2025"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no están disponibles");
+    }
+
+    @Test
+    void getResults_endedWithNoWinnersYet_returnsEmptyList() {
+        activeCampaign.setStatus(CampaignStatus.ENDED);
+        when(entryRepository.findByCampaignIdAndWinnerRankIsNotNullOrderByWinnerRankAsc(activeCampaign.getId()))
+                .thenReturn(List.of());
+
+        List<PhotoContestEntryDto> result = photoContestService.getResults("foto-2025");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getResults_closedCampaignStillReturnsWinners() {
+        activeCampaign.setStatus(CampaignStatus.CLOSED);
+        UUID authorId = UUID.randomUUID();
+        PhotoContestEntry winner = buildEntry(authorId);
+        winner.setWinnerRank(1);
+        User author = new User();
+        author.setId(authorId);
+        author.setEmail("author@example.com");
+        when(entryRepository.findByCampaignIdAndWinnerRankIsNotNullOrderByWinnerRankAsc(activeCampaign.getId()))
+                .thenReturn(List.of(winner));
+        when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
+        when(storageService.toPublicUrl(anyString())).thenReturn("https://cdn.example.com/img.jpg");
+        when(likeRepository.countByEntryId(winner.getId())).thenReturn(0L);
+
+        List<PhotoContestEntryDto> result = photoContestService.getResults("foto-2025");
+
+        assertThat(result).hasSize(1);
+    }
+
+    // --- setWinnerRank ---
+
+    @Test
+    void setWinnerRank_assignsRankSuccessfully() {
+        UUID authorId = UUID.randomUUID();
+        PhotoContestEntry entry = buildEntry(authorId);
+        User author = new User();
+        author.setId(authorId);
+        author.setEmail("author@example.com");
+        when(entryRepository.findById(entry.getId())).thenReturn(Optional.of(entry));
+        when(entryRepository.findByCampaignIdAndWinnerRankIsNotNullOrderByWinnerRankAsc(activeCampaign.getId()))
+                .thenReturn(List.of());
+        when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
+        when(storageService.toPublicUrl(anyString())).thenReturn("https://cdn.example.com/img.jpg");
+        when(likeRepository.countByEntryId(entry.getId())).thenReturn(0L);
+
+        PhotoContestEntryDto result = photoContestService.setWinnerRank(activeCampaign.getId(), entry.getId(), 1);
+
+        assertThat(result.winnerRank()).isEqualTo(1);
+        assertThat(entry.getWinnerRank()).isEqualTo(1);
+    }
+
+    @Test
+    void setWinnerRank_rejectsDuplicateRankWithinCampaign() {
+        PhotoContestEntry entry = buildEntry(UUID.randomUUID());
+        PhotoContestEntry otherWinner = buildEntry(UUID.randomUUID());
+        otherWinner.setWinnerRank(1);
+        when(entryRepository.findById(entry.getId())).thenReturn(Optional.of(entry));
+        when(entryRepository.findByCampaignIdAndWinnerRankIsNotNullOrderByWinnerRankAsc(activeCampaign.getId()))
+                .thenReturn(List.of(otherWinner));
+
+        assertThatThrownBy(() -> photoContestService.setWinnerRank(activeCampaign.getId(), entry.getId(), 1))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ya fue asignado");
+    }
+
+    @Test
+    void setWinnerRank_clearingRank_setsNull() {
+        UUID authorId = UUID.randomUUID();
+        PhotoContestEntry entry = buildEntry(authorId);
+        entry.setWinnerRank(2);
+        User author = new User();
+        author.setId(authorId);
+        author.setEmail("author@example.com");
+        when(entryRepository.findById(entry.getId())).thenReturn(Optional.of(entry));
+        when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
+        when(storageService.toPublicUrl(anyString())).thenReturn("https://cdn.example.com/img.jpg");
+        when(likeRepository.countByEntryId(entry.getId())).thenReturn(0L);
+
+        PhotoContestEntryDto result = photoContestService.setWinnerRank(activeCampaign.getId(), entry.getId(), null);
+
+        assertThat(result.winnerRank()).isNull();
+        assertThat(entry.getWinnerRank()).isNull();
+    }
+
+    // --- notifyWinners ---
+
+    @Test
+    void notifyWinners_sendsMessageToSelectedWinners_andStampsNotifiedAt() {
+        activeCampaign.setStatus(CampaignStatus.ENDED);
+        UUID authorId = UUID.randomUUID();
+        PhotoContestEntry winner = buildEntry(authorId);
+        winner.setWinnerRank(1);
+        User author = new User();
+        author.setId(authorId);
+        author.setEmail("author@example.com");
+        when(entryRepository.findById(winner.getId())).thenReturn(Optional.of(winner));
+        when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
+
+        int notifiedCount = photoContestService.notifyWinners(
+                activeCampaign.getId(), "Asunto personalizado", "¡Felicidades, ganaste!", List.of(winner.getId()));
+
+        assertThat(notifiedCount).isEqualTo(1);
+        assertThat(winner.getNotifiedAt()).isNotNull();
+        verify(mailService).sendCampaignMessage("author@example.com", "Asunto personalizado", "¡Felicidades, ganaste!");
+    }
+
+    @Test
+    void notifyWinners_stillActiveCampaign_throwsAndSendsNoEmail() {
+        PhotoContestEntry winner = buildEntry(UUID.randomUUID());
+        winner.setWinnerRank(1);
+
+        assertThatThrownBy(() -> photoContestService.notifyWinners(
+                activeCampaign.getId(), "Asunto", "Mensaje", List.of(winner.getId())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("finalizado");
+
+        verify(mailService, never()).sendCampaignMessage(any(), any(), any());
+    }
+
+    @Test
+    void notifyWinners_closedCampaign_stillAllowed() {
+        activeCampaign.setStatus(CampaignStatus.CLOSED);
+        UUID authorId = UUID.randomUUID();
+        PhotoContestEntry winner = buildEntry(authorId);
+        winner.setWinnerRank(1);
+        User author = new User();
+        author.setId(authorId);
+        author.setEmail("author@example.com");
+        when(entryRepository.findById(winner.getId())).thenReturn(Optional.of(winner));
+        when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
+
+        int notifiedCount = photoContestService.notifyWinners(
+                activeCampaign.getId(), "Asunto", "Mensaje", List.of(winner.getId()));
+
+        assertThat(notifiedCount).isEqualTo(1);
+        verify(mailService).sendCampaignMessage("author@example.com", "Asunto", "Mensaje");
+    }
+
+    @Test
+    void notifyWinners_rejectsEntryThatIsNotAWinner() {
+        activeCampaign.setStatus(CampaignStatus.ENDED);
+        PhotoContestEntry notAWinner = buildEntry(UUID.randomUUID());
+        when(entryRepository.findById(notAWinner.getId())).thenReturn(Optional.of(notAWinner));
+
+        assertThatThrownBy(() -> photoContestService.notifyWinners(
+                activeCampaign.getId(), "Asunto", "Mensaje", List.of(notAWinner.getId())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ganadoras");
+
+        verify(mailService, never()).sendCampaignMessage(any(), any(), any());
+    }
+
+    @Test
+    void notifyWinners_rejectsEntryFromOtherCampaign() {
+        activeCampaign.setStatus(CampaignStatus.ENDED);
+        PhotoContestEntry entry = buildEntry(UUID.randomUUID());
+        entry.setWinnerRank(1);
+        entry.setCampaignId(UUID.randomUUID());
+        when(entryRepository.findById(entry.getId())).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> photoContestService.notifyWinners(
+                activeCampaign.getId(), "Asunto", "Mensaje", List.of(entry.getId())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not belong");
+
+        verify(mailService, never()).sendCampaignMessage(any(), any(), any());
     }
 
     private void setAuthAs(String email, String role) {

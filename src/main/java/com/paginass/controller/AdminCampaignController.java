@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.paginass.dto.CampaignCreateRequestDto;
 import com.paginass.dto.CampaignDto;
 import com.paginass.dto.CampaignStatusUpdateRequestDto;
+import com.paginass.dto.NotifyWinnersRequestDto;
+import com.paginass.dto.NotifyWinnersResponseDto;
+import com.paginass.dto.PhotoContestEntryDto;
+import com.paginass.dto.PhotoContestWinnerUpdateRequestDto;
 import com.paginass.service.CampaignService;
 import com.paginass.service.PhotoContestService;
 import jakarta.validation.Valid;
@@ -108,5 +112,21 @@ public class AdminCampaignController {
             @PathVariable UUID id,
             @PathVariable UUID entryId) {
         photoContestService.deleteEntry(id, entryId);
+    }
+
+    @PatchMapping("/{id}/entries/{entryId}/winner-rank")
+    public ResponseEntity<PhotoContestEntryDto> setWinnerRank(
+            @PathVariable UUID id,
+            @PathVariable UUID entryId,
+            @Valid @RequestBody PhotoContestWinnerUpdateRequestDto request) {
+        return ResponseEntity.ok(photoContestService.setWinnerRank(id, entryId, request.winnerRank()));
+    }
+
+    @PostMapping("/{id}/notify-winners")
+    public ResponseEntity<NotifyWinnersResponseDto> notifyWinners(
+            @PathVariable UUID id,
+            @Valid @RequestBody NotifyWinnersRequestDto request) {
+        int notifiedCount = photoContestService.notifyWinners(id, request.subject(), request.message(), request.entryIds());
+        return ResponseEntity.ok(new NotifyWinnersResponseDto(notifiedCount));
     }
 }

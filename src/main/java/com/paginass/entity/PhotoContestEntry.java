@@ -40,6 +40,12 @@ public class PhotoContestEntry {
     @Column(nullable = false)
     private boolean disabled = false;
 
+    @Column(name = "winner_rank")
+    private Integer winnerRank;
+
+    @Column(name = "notified_at")
+    private OffsetDateTime notifiedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 }

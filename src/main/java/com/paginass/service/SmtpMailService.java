@@ -130,4 +130,24 @@ public class SmtpMailService implements MailService {
     public void recoverSendNewClaimNotificationEmail(MailException e, String adminEmail, String claimantName, String claimantEmail, String businessName, String claimsQueueUrl) {
         log.error("Failed to send new claim notification to {} after retries: {}", adminEmail, e.getMessage());
     }
+
+    @Override
+    @Retryable(
+        retryFor = MailException.class,
+        maxAttemptsExpression = "${app.mail.retry.max-attempts:2}",
+        backoff = @Backoff(delayExpression = "${app.mail.retry.delay-ms:1000}")
+    )
+    public void sendCampaignMessage(String to, String subject, String message) {
+        SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setFrom(mailFrom);
+        mailMessage.setTo(to);
+        mailMessage.setSubject(subject);
+        mailMessage.setText(message);
+        mailSender.send(mailMessage);
+    }
+
+    @Recover
+    public void recoverSendCampaignMessage(MailException e, String to, String subject, String message) {
+        log.error("Failed to send campaign message to {} after retries: {}", to, e.getMessage());
+    }
 }

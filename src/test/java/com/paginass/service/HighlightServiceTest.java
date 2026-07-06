@@ -3,6 +3,7 @@ package com.paginass.service;
 import com.paginass.dto.CreateHighlightRequestDto;
 import com.paginass.dto.HighlightableAdDto;
 import com.paginass.dto.HighlightableBusinessDto;
+import com.paginass.dto.HighlightableCampaignDto;
 import com.paginass.dto.HighlightCardDto;
 import com.paginass.dto.HighlightLifetime;
 import com.paginass.dto.HighlightSummaryDto;
@@ -12,13 +13,17 @@ import com.paginass.entity.AdCategory;
 import com.paginass.entity.Advertisement;
 import com.paginass.entity.BusinessProfile;
 import com.paginass.entity.BusinessType;
+import com.paginass.entity.Campaign;
+import com.paginass.entity.CampaignStatus;
 import com.paginass.entity.Highlight;
 import com.paginass.entity.HighlightType;
 import com.paginass.entity.User;
 import com.paginass.entity.UserRole;
 import com.paginass.repository.AdvertisementRepository;
 import com.paginass.repository.BusinessProfileRepository;
+import com.paginass.repository.CampaignRepository;
 import com.paginass.repository.HighlightRepository;
+import com.paginass.repository.PhotoContestEntryRepository;
 import com.paginass.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +48,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,6 +60,8 @@ class HighlightServiceTest {
     @Mock private HighlightRepository highlightRepository;
     @Mock private BusinessProfileRepository businessProfileRepository;
     @Mock private AdvertisementRepository advertisementRepository;
+    @Mock private CampaignRepository campaignRepository;
+    @Mock private PhotoContestEntryRepository photoContestEntryRepository;
     @Mock private UserRepository userRepository;
     @Mock private StorageService storageService;
 
@@ -63,6 +71,7 @@ class HighlightServiceTest {
     private User admin;
     private BusinessProfile activeBusiness;
     private Advertisement activeAd;
+    private Campaign campaign;
 
     @BeforeEach
     void setUp() {
@@ -86,6 +95,12 @@ class HighlightServiceTest {
         activeAd.setCategory(AdCategory.SALE);
         activeAd.setActive(true);
         activeAd.setExpiresAt(Instant.now().plusSeconds(86400));
+
+        campaign = new Campaign();
+        campaign.setId(UUID.randomUUID());
+        campaign.setName("Concurso de Fotos");
+        campaign.setSlug("foto-2025");
+        campaign.setStatus(CampaignStatus.ACTIVE);
 
         UserDetails principal = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -241,6 +256,45 @@ class HighlightServiceTest {
         assertThat(result.get(0)).isInstanceOf(HighlightCardDto.class);
     }
 
+    @Test
+    void getActiveHighlights_activeCampaign_linksToMainPage() {
+        Highlight h = enabledCampaignHighlight(campaign.getId());
+        when(highlightRepository.findAllByEnabledTrueOrderByCreatedAtDesc()).thenReturn(List.of(h));
+        when(campaignRepository.findById(campaign.getId())).thenReturn(Optional.of(campaign));
+
+        List<HighlightCardDto> result = highlightService.getActiveHighlights();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).linkPath()).isEqualTo("/concursos/foto-2025");
+    }
+
+    @Test
+    void getActiveHighlights_endedCampaignWithoutWinners_excluded() {
+        campaign.setStatus(CampaignStatus.ENDED);
+        Highlight h = enabledCampaignHighlight(campaign.getId());
+        when(highlightRepository.findAllByEnabledTrueOrderByCreatedAtDesc()).thenReturn(List.of(h));
+        when(campaignRepository.findById(campaign.getId())).thenReturn(Optional.of(campaign));
+        when(photoContestEntryRepository.existsByCampaignIdAndWinnerRankIsNotNull(campaign.getId())).thenReturn(false);
+
+        List<HighlightCardDto> result = highlightService.getActiveHighlights();
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getActiveHighlights_endedCampaignWithWinners_linksToResultsPage() {
+        campaign.setStatus(CampaignStatus.ENDED);
+        Highlight h = enabledCampaignHighlight(campaign.getId());
+        when(highlightRepository.findAllByEnabledTrueOrderByCreatedAtDesc()).thenReturn(List.of(h));
+        when(campaignRepository.findById(campaign.getId())).thenReturn(Optional.of(campaign));
+        when(photoContestEntryRepository.existsByCampaignIdAndWinnerRankIsNotNull(campaign.getId())).thenReturn(true);
+
+        List<HighlightCardDto> result = highlightService.getActiveHighlights();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).linkPath()).isEqualTo("/concursos/foto-2025/resultados");
+    }
+
     // --- expireHighlights ---
 
     @Test
@@ -288,6 +342,30 @@ class HighlightServiceTest {
 
         assertThatThrownBy(() -> highlightService.disableHighlight(missingId))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // --- searchCampaigns ---
+
+    @Test
+    void searchCampaigns_searchesActiveAndEndedStatusesOnly() {
+        when(campaignRepository.findByStatusInAndNameContainingIgnoreCaseOrderByNameAsc(
+                List.of(CampaignStatus.ACTIVE, CampaignStatus.ENDED), "foto"))
+                .thenReturn(List.of(campaign));
+
+        List<HighlightableCampaignDto> result = highlightService.searchCampaigns("foto");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).name()).isEqualTo("Concurso de Fotos");
+        verify(campaignRepository).findByStatusInAndNameContainingIgnoreCaseOrderByNameAsc(
+                eq(List.of(CampaignStatus.ACTIVE, CampaignStatus.ENDED)), eq("foto"));
+    }
+
+    @Test
+    void searchCampaigns_blankQueryReturnsEmpty() {
+        List<HighlightableCampaignDto> result = highlightService.searchCampaigns("  ");
+
+        assertThat(result).isEmpty();
+        verify(campaignRepository, never()).findByStatusInAndNameContainingIgnoreCaseOrderByNameAsc(any(), any());
     }
 
     // --- searchBusinesses ---
@@ -351,6 +429,16 @@ class HighlightServiceTest {
         Highlight h = new Highlight();
         h.setId(UUID.randomUUID());
         h.setType(HighlightType.ADVERTISEMENT);
+        h.setReferenceId(referenceId);
+        h.setExpiresAt(Instant.now().plusSeconds(86400));
+        h.setEnabled(true);
+        return h;
+    }
+
+    private Highlight enabledCampaignHighlight(UUID referenceId) {
+        Highlight h = new Highlight();
+        h.setId(UUID.randomUUID());
+        h.setType(HighlightType.CAMPAIGN);
         h.setReferenceId(referenceId);
         h.setExpiresAt(Instant.now().plusSeconds(86400));
         h.setEnabled(true);

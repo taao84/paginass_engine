@@ -20,4 +20,6 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
 
     List<Campaign> findByStatusAndNameContainingIgnoreCaseOrderByNameAsc(CampaignStatus status, String name);
 
+    List<Campaign> findByStatusInAndNameContainingIgnoreCaseOrderByNameAsc(List<CampaignStatus> statuses, String name);
+
 }

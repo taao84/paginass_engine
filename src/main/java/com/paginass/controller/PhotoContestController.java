@@ -43,6 +43,11 @@ public class PhotoContestController {
         return ResponseEntity.ok(photoContestService.getGallery(slug));
     }
 
+    @GetMapping("/{slug}/results")
+    public ResponseEntity<List<PhotoContestEntryDto>> getResults(@PathVariable String slug) {
+        return ResponseEntity.ok(photoContestService.getResults(slug));
+    }
+
     @GetMapping("/entries/{entryId}")
     public ResponseEntity<PhotoContestEntryDto> getEntry(@PathVariable UUID entryId) {
         return ResponseEntity.ok(photoContestService.getEntry(entryId));

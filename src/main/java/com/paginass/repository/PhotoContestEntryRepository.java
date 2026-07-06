@@ -23,4 +23,10 @@ public interface PhotoContestEntryRepository extends JpaRepository<PhotoContestE
 
     @Query("SELECT COUNT(l) FROM PhotoContestLike l WHERE l.entryId = :entryId")
     long countLikesByEntryId(@Param("entryId") UUID entryId);
+
+    List<PhotoContestEntry> findByCampaignIdAndWinnerRankIsNotNullOrderByWinnerRankAsc(UUID campaignId);
+
+    boolean existsByCampaignIdAndWinnerRankIsNotNull(UUID campaignId);
+
+    List<PhotoContestEntry> findByCampaignIdAndWinnerRankIsNotNullAndNotifiedAtIsNull(UUID campaignId);
 }
