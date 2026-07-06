@@ -52,7 +52,8 @@ public class SecurityConfig {
         "/api/auth/verify-email",
         "/api/auth/resend-verification",
         "/api/auth/forgot-password",
-        "/api/auth/reset-password/confirm"
+        "/api/auth/reset-password/confirm",
+        "/actuator/health"
     };
 
     @Bean
@@ -128,7 +129,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(PUBLIC_PATHS).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/actuator/health", "/actuator/info").hasRole("ADMIN")
+                .requestMatchers("/actuator/info").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/profile/businesses").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/profile/businesses").hasRole("CONTRIBUTOR")
                 .requestMatchers(HttpMethod.POST, "/api/profile/setup").hasAnyRole("EDITOR", "ADMIN", "CONTRIBUTOR")
