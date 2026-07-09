@@ -1,5 +1,6 @@
 package com.paginass.dto;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -9,5 +10,10 @@ public record AdminUserDto(
         String fullName,
         String role,
         boolean enabled,
-        OffsetDateTime createdAt
+        boolean emailVerified,
+        String oauthProvider,
+        String phone,
+        LocalDate dateOfBirth,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {}

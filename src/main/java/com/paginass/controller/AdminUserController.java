@@ -23,8 +23,9 @@ public class AdminUserController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) UserRole role,
             @RequestParam(required = false) Boolean enabled,
+            @RequestParam(required = false) Boolean emailVerified,
             @RequestParam(defaultValue = "0") int page) {
-        return ResponseEntity.ok(adminUserService.listUsers(search, role, enabled, page));
+        return ResponseEntity.ok(adminUserService.listUsers(search, role, enabled, emailVerified, page));
     }
 
     @PatchMapping("/{id}/role")

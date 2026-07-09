@@ -52,7 +52,7 @@ public class AdminUserService {
     private String frontendUrl;
 
     @Transactional(readOnly = true)
-    public AdminUserPageDto listUsers(String search, UserRole role, Boolean isEnabled, int page) {
+    public AdminUserPageDto listUsers(String search, UserRole role, Boolean isEnabled, Boolean emailVerified, int page) {
         Specification<User> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -68,6 +68,9 @@ public class AdminUserService {
             }
             if (isEnabled != null) {
                 predicates.add(cb.equal(root.get("isEnabled"), isEnabled));
+            }
+            if (emailVerified != null) {
+                predicates.add(cb.equal(root.get("emailVerified"), emailVerified));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -168,7 +171,12 @@ public class AdminUserService {
                 user.getFullName(),
                 user.getRole().name(),
                 user.isEnabled(),
-                user.getCreatedAt()
+                user.isEmailVerified(),
+                user.getOauthProvider(),
+                user.getPhone(),
+                user.getDateOfBirth(),
+                user.getCreatedAt(),
+                user.getUpdatedAt()
         );
     }
 
